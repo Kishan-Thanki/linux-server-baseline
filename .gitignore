@@ -1,0 +1,22 @@
+# OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor & IDE Configs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local Artifacts / Testing Clogs
+*.tar.gz
+*.sha256
+*.log
+tmp/
+temp/
