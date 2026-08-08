@@ -6,10 +6,6 @@ echo "====================================="
 echo " Firewall & Intrusion Protection"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  UFW
-# ─────────────────────────────────────
-
 echo
 echo "==> Installing UFW..."
 
@@ -41,10 +37,6 @@ echo "==> Enabling firewall..."
 sudo ufw --force enable
 
 echo "✓ UFW configured."
-
-# ─────────────────────────────────────
-#  Fail2Ban
-# ─────────────────────────────────────
 
 HOSTNAME="$(hostname)"
 
@@ -100,10 +92,6 @@ echo "==> Validating configuration..."
 sudo systemctl is-active --quiet fail2ban
 
 echo "✓ Service is active."
-
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
 
 echo
 echo "====================================="

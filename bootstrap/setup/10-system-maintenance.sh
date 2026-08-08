@@ -10,10 +10,6 @@ echo "====================================="
 echo " System Maintenance & Automation"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  Automatic Security Updates
-# ─────────────────────────────────────
-
 echo
 echo "==> Configuring automatic security updates..."
 
@@ -26,10 +22,6 @@ APT::Periodic::Unattended-Upgrade "1";
 EOF
 
 echo "✓ Unattended-upgrades configured."
-
-# ─────────────────────────────────────
-#  Log Rotation Policy
-# ─────────────────────────────────────
 
 echo
 echo "==> Configuring log rotation for application logs..."
@@ -48,10 +40,6 @@ ${PLATFORM_LOG_DIR}/*.log {
 EOF
 
 echo "✓ Logrotate policy created for ${PLATFORM_LOG_DIR}/."
-
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
 
 echo
 echo "====================================="

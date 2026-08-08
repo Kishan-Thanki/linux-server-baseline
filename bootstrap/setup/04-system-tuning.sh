@@ -9,20 +9,12 @@ echo "====================================="
 echo " System Tuning"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  Timezone
-# ─────────────────────────────────────
-
 echo
 echo "==> Setting timezone..."
 
 sudo timedatectl set-timezone UTC
 
 echo "✓ Timezone set to UTC."
-
-# ─────────────────────────────────────
-#  Journald
-# ─────────────────────────────────────
 
 echo
 echo "==> Configuring systemd-journald..."
@@ -43,10 +35,6 @@ sudo systemctl restart systemd-journald
 
 echo "✓ Journald configured."
 
-# ─────────────────────────────────────
-#  Kernel Parameters
-# ─────────────────────────────────────
-
 echo
 echo "==> Configuring kernel parameters..."
 
@@ -60,10 +48,6 @@ sudo sysctl --system >/dev/null
 
 echo "✓ Kernel parameters applied."
 
-# ─────────────────────────────────────
-#  File Descriptor Limits
-# ─────────────────────────────────────
-
 echo
 echo "==> Configuring file descriptor limits..."
 
@@ -75,10 +59,6 @@ root hard nofile 65535
 EOF
 
 echo "✓ File descriptor limits configured."
-
-# ─────────────────────────────────────
-#  Swap
-# ─────────────────────────────────────
 
 echo
 echo "==> Configuring swap..."
@@ -114,10 +94,6 @@ if ! grep -q "^$SWAPFILE" /etc/fstab; then
 else
     echo "✓ Already present in /etc/fstab."
 fi
-
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
 
 echo
 echo "====================================="

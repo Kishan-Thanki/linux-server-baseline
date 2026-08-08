@@ -6,10 +6,6 @@ echo "====================================="
 echo " Operational Tooling"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  Monitoring
-# ─────────────────────────────────────
-
 echo
 echo "==> Installing monitoring utilities..."
 
@@ -33,10 +29,6 @@ sudo systemctl start sysstat
 
 echo "✓ Monitoring services enabled."
 
-# ─────────────────────────────────────
-#  Backup
-# ─────────────────────────────────────
-
 echo
 echo "==> Installing backup utilities..."
 
@@ -56,10 +48,6 @@ sudo mkdir -p \
 sudo chown -R root:root /opt/backups
 
 echo "✓ Backup directory structure created."
-
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
 
 echo
 echo "====================================="
