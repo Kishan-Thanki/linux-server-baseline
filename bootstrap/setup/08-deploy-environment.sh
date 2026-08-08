@@ -8,10 +8,6 @@ echo "====================================="
 echo " Deployment Setup"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  Platform Layout
-# ─────────────────────────────────────
-
 echo
 echo "==> Creating platform directory structure..."
 
@@ -22,10 +18,6 @@ sudo install -d -m 0755 /opt/platform/tmp
 sudo install -d -m 0755 /opt/platform/logs
 
 echo "✓ Platform directories created."
-
-# ─────────────────────────────────────
-#  Deploy User
-# ─────────────────────────────────────
 
 echo
 echo "==> Ensuring $DEPLOY_USER user exists..."
@@ -41,10 +33,6 @@ else
 
     echo "✓ User '$DEPLOY_USER' created."
 fi
-
-# ─────────────────────────────────────
-#  Restricted Sudo Policy
-# ─────────────────────────────────────
 
 echo
 echo "==> Configuring restricted sudo policy..."
@@ -66,20 +54,12 @@ sudo visudo -cf "/etc/sudoers.d/$DEPLOY_USER"
 
 echo "✓ Sudoers policy configured."
 
-# ─────────────────────────────────────
-#  Ownership
-# ─────────────────────────────────────
-
 echo
 echo "==> Setting ownership of /opt/platform..."
 
 sudo chown -R "$DEPLOY_USER:$DEPLOY_USER" /opt/platform
 
 echo "✓ Ownership assigned to $DEPLOY_USER user."
-
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
 
 echo
 echo "====================================="

@@ -12,13 +12,10 @@ echo "====================================="
 echo " Caddy Reverse Proxy"
 echo "====================================="
 
-# ─────────────────────────────────────
-#  Prerequisites
-# ─────────────────────────────────────
-
 echo
 echo "==> Installing prerequisites..."
 
+sudo apt update
 sudo apt install -y \
     curl \
     gnupg \
@@ -27,10 +24,6 @@ sudo apt install -y \
     apt-transport-https
 
 echo "✓ Prerequisites installed."
-
-# ─────────────────────────────────────
-#  Repository
-# ─────────────────────────────────────
 
 echo
 echo "==> Creating keyring directory..."
@@ -50,10 +43,6 @@ echo \
 "deb [signed-by=/etc/apt/keyrings/caddy-stable.gpg] https://dl.cloudsmith.io/public/caddy/stable/deb/debian any-version main" \
 | sudo tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
 
-# ─────────────────────────────────────
-#  Install & Enable
-# ─────────────────────────────────────
-
 echo
 echo "==> Updating package index..."
 
@@ -69,10 +58,17 @@ sudo systemctl enable caddy
 sudo systemctl start caddy
 
 echo "✓ Caddy installed and running."
+echo
+echo "==> Configuring modular Caddy structure..."
 
-# ─────────────────────────────────────
-#  Verification
-# ─────────────────────────────────────
+sudo mkdir -p /etc/caddy/conf.d
+
+echo "import /etc/caddy/conf.d/*.caddy" | sudo tee /etc/caddy/Caddyfile >/dev/null
+
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl reload caddy
+
+echo "✓ Modular Caddy configuration applied successfully."
 
 echo
 echo "====================================="
