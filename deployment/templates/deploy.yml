@@ -4,20 +4,20 @@ on:
   release:
     types: [published]
   workflow_dispatch:
-  inputs:
-    version_tag:
-      description: "Version tag to deploy (e.g., service-v1.0.0)"
-      required: true
-      type: string
+    inputs: 
+      version_tag:
+        description: "Version tag to deploy (e.g., service-v1.0.0)"
+        required: true
+        type: string
 
 env:
-  SERVICE_NAME: "placeholder-service"          # e.g., api-service
-  SYSTEMD_SERVICE: "placeholder-service.service" # e.g., api-service.service
-  HEALTH_URL: "http://placeholder:port/health"   # e.g., http://localhost:8080/health
+  SERVICE_NAME: "placeholder-service" # e.g., api-service
+  SYSTEMD_SERVICE: "placeholder-service.service" # e.g., api.service
+  HEALTH_URL: "http://placeholder:port/health" # e.g., http://localhost:8080/health
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 
 
     steps:
       - name: Resolve Deployment Version
@@ -46,12 +46,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -eo pipefail                                                        
           VERSION="${{ steps.context.outputs.VERSION }}"
+          REPO="${{ github.repository }}"                                         
           echo "Fetching immutable asset and checksum for version: $VERSION"
 
-          # Download binary tarball and its sha256 checksum file generated in release
-          gh release download "$VERSION" --pattern "*.tar.gz" --output artifact.tar.gz
-          gh release download "$VERSION" --pattern "*.sha256" --output artifact.tar.gz.sha256 || true
+          gh release download "$VERSION" --repo "$REPO" --pattern "*.tar.gz"
+          mv *.tar.gz artifact.tar.gz
+
+          gh release download "$VERSION" --repo "$REPO" --pattern "*.sha256" || true
+          if ls *.sha256 &>/dev/null; then mv *.sha256 artifact.tar.gz.sha256; fi
 
           if [ ! -f "artifact.tar.gz" ]; then
             echo "Error: No .tar.gz artifact found attached to release $VERSION"
@@ -86,12 +90,13 @@ jobs:
           VERSION: ${{ steps.context.outputs.VERSION }}
           CHECKSUM: ${{ env.SHA256_HASH }}
         run: |
+          set -eo pipefail                                                        
           echo "Triggering remote deployment script via deploy user..."
-          
+
           # Standard EOF (unquoted) so local env variables safely evaluate before transmission
           ssh deploy@${{ secrets.SSH_HOST }} << EOF
-            set -e
-            
+            set -eo pipefail                                                      
+
             # Execute robust server-side deployment script complying with all safeguards
             /opt/platform/deploy.sh \
               --service "${{ env.SERVICE_NAME }}" \
@@ -100,7 +105,7 @@ jobs:
               --sha256 "$CHECKSUM" \
               --systemd "${{ env.SYSTEMD_SERVICE }}" \
               --health "${{ env.HEALTH_URL }}"
-              
+
             # Cleanup remote staging file
             rm -f /home/deploy/artifact.tar.gz
           EOF
