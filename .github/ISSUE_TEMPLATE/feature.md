@@ -1,16 +1,77 @@
 ---
+
 name: Feature Request
-about: Propose a new platform addition or script modification for bootstrap
-title: "[FEATURE]: "
-labels: "enhancement"
+about: Propose an improvement to server-ops infrastructure, automation, maintenance, or deployment tooling
+title: "[Feature] "
+labels: enhancement
 assignees: ""
----
+-------------
 
 ## Feature Description
-<!-- A clear and concise description of what you want to add. -->
 
-## Why is this needed?
-<!-- What problem does this solve or what capability does it add to the platform? -->
+Describe the requested capability or improvement.
+
+## Problem / Motivation
+
+What problem does this feature solve?
+
+Why is the current behavior insufficient?
+
+## Affected Area
+
+* [ ] Bootstrap
+* [ ] Maintenance
+* [ ] Deployment
+* [ ] GitHub Actions
+* [ ] Security / Hardening
+* [ ] Observability
+* [ ] Documentation
+* [ ] Other
+
+Affected component:
+
+```text
+path/to/component
+```
 
 ## Proposed Implementation
-<!-- How should this be handled across the bootstrap scripts or platform configuration? -->
+
+Describe the intended implementation at a high level.
+
+Include relevant scripts, workflows, configuration, or platform components that may need to change.
+
+## Requirements
+
+List the expected functional or operational requirements.
+
+*
+*
+*
+
+## Security / Operational Considerations
+
+Describe any impact on:
+
+* Server permissions
+* SSH access
+* Sudo rules
+* Firewall rules
+* Secrets or credentials
+* Deployment behavior
+* Availability
+* Rollback
+* Monitoring or logging
+
+## Acceptance Criteria
+
+The feature is complete when:
+
+* [ ]
+* [ ]
+* [ ]
+
+## Additional Context
+
+Add examples, references, diagrams, logs, or related issues where useful.
+
+Do not include passwords, private keys, tokens, or other sensitive production information.

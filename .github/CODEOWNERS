@@ -1,0 +1,22 @@
+# Default platform ownership
+
+* @Kishan-Thanki
+
+# Bootstrap and server configuration
+
+/bootstrap/ @Kishan-Thanki
+/bootstrap/setup/ @Kishan-Thanki
+/bootstrap/maintenance/ @Kishan-Thanki
+
+# Deployment engine and deployment infrastructure
+
+/deployment/ @Kishan-Thanki
+/deployment/deploy.sh @Kishan-Thanki
+/deployment/templates/ @Kishan-Thanki
+/deployment/docs/ @Kishan-Thanki
+
+# Security-sensitive repository configuration
+
+/.github/ @Kishan-Thanki
+/.github/CODEOWNERS @Kishan-Thanki
+/.github/ISSUE_TEMPLATE/ @Kishan-Thanki
