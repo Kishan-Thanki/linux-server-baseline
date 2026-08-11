@@ -1,71 +1,51 @@
 #!/usr/bin/env bash
 
-# =============================================================================
 # cleanup.sh
 #
 # Purpose:
-# Perform safe manual cleanup of temporary files, system journals, and
-# unnecessary APT data.
+#   Perform safe manual cleanup of temporary files, system journals,
+#   and unnecessary APT data.
 #
-# This script:
+# Operations:
+#   - Remove journal entries older than 30 days
+#   - Remove files older than 7 days from /tmp
+#   - Remove empty directories older than 7 days from /tmp
+#   - Remove files older than 7 days from /var/tmp
+#   - Remove empty directories older than 7 days from /var/tmp
+#   - Remove packages that are no longer required
+#   - Clean the local APT package cache
+#   - Display resulting disk usage
 #
-# - Removes journal entries older than 30 days
-# - Removes files older than 7 days from /tmp
-# - Removes empty directories older than 7 days from /tmp
-# - Removes files older than 7 days from /var/tmp
-# - Removes empty directories older than 7 days from /var/tmp
-# - Removes packages that are no longer required
-# - Cleans the local APT package cache
+# Usage:
+#   ./cleanup.sh
 #
-# IMPORTANT:
-#
-# This is a manual maintenance operation.
-#
-#
-# Run as the administrator:
-#
-#   cleanup
-#
-# =============================================================================
+# Requirements:
+#   - Bash
+#   - sudo with non-interactive administrative access
+#   - systemd
+#   - APT-based Linux distribution
 
 set -euo pipefail
+
+export DEBIAN_FRONTEND=noninteractive
 
 JOURNAL_RETENTION="30d"
 TEMP_FILE_AGE_DAYS="7"
 
-echo "====================================="
-echo " System Cleanup"
-echo "====================================="
-
-# =============================================================================
-# 1. Verify Administrative Access
-# =============================================================================
-
-echo
 echo "==> Checking administrator privileges..."
 
 if ! sudo -n true; then
-    echo "ERROR: Current user does not have working passwordless sudo."
-    echo "Run this script as the administrator."
+    echo "ERROR: Current user does not have working passwordless sudo." >&2
+    echo "Run this script as the administrator." >&2
     exit 1
 fi
 
 echo "✓ Administrator privileges verified."
 
-# =============================================================================
-# 2. Clean systemd Journal
-# =============================================================================
-
 echo
 echo "==> Cleaning systemd journal..."
-
 sudo journalctl --vacuum-time="$JOURNAL_RETENTION"
-
 echo "✓ Journal entries older than $JOURNAL_RETENTION processed."
-
-# =============================================================================
-# 3. Clean /tmp
-# =============================================================================
 
 echo
 echo "==> Cleaning /tmp..."
@@ -87,10 +67,6 @@ sudo find /tmp \
 
 echo "✓ Old /tmp files and empty directories cleaned."
 
-# =============================================================================
-# 4. Clean /var/tmp
-# =============================================================================
-
 echo
 echo "==> Cleaning /var/tmp..."
 
@@ -111,62 +87,31 @@ sudo find /var/tmp \
 
 echo "✓ Old /var/tmp files and empty directories cleaned."
 
-# =============================================================================
-# 5. Remove Unnecessary Packages
-# =============================================================================
-
 echo
 echo "==> Removing unnecessary packages..."
-
-sudo DEBIAN_FRONTEND=noninteractive \
-    apt-get autoremove -y
-
+sudo apt-get autoremove -y
 echo "✓ Unnecessary packages removed."
 
-# =============================================================================
-# 6. Clean APT Cache
-# =============================================================================
-
 echo
-echo "==> Cleaning package cache..."
-
+echo "==> Cleaning APT package cache..."
 sudo apt-get clean
-
-echo "✓ Package cache cleaned."
-
-# =============================================================================
-# 7. Verification
-# =============================================================================
-
-echo
-echo "====================================="
-echo " Verification"
-echo "====================================="
+echo "✓ APT package cache cleaned."
 
 echo
 echo "==> Journal disk usage..."
-
 sudo journalctl --disk-usage
 
 echo
 echo "==> Temporary directory usage..."
-
 sudo du -sh /tmp /var/tmp
 
 echo
 echo "==> APT cache usage..."
-
 sudo du -sh /var/cache/apt
 
 echo
-echo "====================================="
-echo " Disk Usage"
-echo "====================================="
-
-echo
+echo "==> Root filesystem usage..."
 df -h /
 
 echo
-echo "====================================="
-echo " Cleanup completed"
-echo "====================================="
+echo "✓ System cleanup completed successfully."

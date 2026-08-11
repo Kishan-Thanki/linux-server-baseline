@@ -1,8 +1,12 @@
 # Server Maintenance
 
-This directory contains manual maintenance utilities for servers provisioned by the `server-ops` bootstrap system.
+Persistent administrative utilities for routine operating-system maintenance on servers configured with the `server-ops` bootstrap architecture.
 
-These scripts are intended to be run by the permanent `admin` account.
+These scripts are separate from server provisioning, application deployment, release management, and backup management.
+
+> **Important:** These are privileged, persistent maintenance utilities. Review the scripts and verify their suitability for your server before use. They may modify installed packages, system journals, temporary files, and other system state. Retention periods and cleanup behavior should be reviewed against your operational, backup, logging, and compliance requirements.
+>
+> These scripts are provided as open-source reference tooling and may require customization for your environment. Use appropriate backups and recovery procedures before performing destructive maintenance operations. See the repository [Terms](../../TERMS.md), [Policy](../../POLICY.md), [Conditions](../../CONDITIONS.md), and [License](../../LICENSE) for the applicable repository-wide terms and policies.
 
 ## Directory
 
@@ -19,91 +23,62 @@ server-ops/
 
 ### `refresh.sh`
 
-Performs a manual operating-system package refresh.
+Performs a manual APT package refresh.
 
 It:
 
 * Updates the APT package index
 * Upgrades installed packages
-* Removes packages no longer required
-* Cleans the local APT package cache
+* Removes packages that are no longer required
+* Cleans the APT package cache
 * Checks for remaining upgradable packages
 * Checks the `dpkg` package state
 * Displays root filesystem usage
 
-Run:
+Run directly from this directory:
+
+```bash
+./refresh.sh
+```
+
+If installed system-wide:
 
 ```bash
 refresh
 ```
-
-This script does not:
-
-* Deploy applications
-* Restart application services
-* Modify SSH configuration
-* Modify firewall configuration
-* Modify Caddy configuration
-* Configure backups
-* Delete application releases
-* Delete deployment logs
 
 ### `cleanup.sh`
 
-Performs a manual system cleanup.
+Performs manual system and temporary-file cleanup.
 
 It:
 
-* Removes systemd journal entries older than 30 days
-* Removes files older than 7 days from `/tmp`
-* Removes empty old directories from `/tmp`
-* Removes files older than 7 days from `/var/tmp`
-* Removes empty old directories from `/var/tmp`
-* Removes unnecessary APT packages
-* Cleans the local APT package cache
+* Removes systemd journal entries older than **30 days**
+* Removes files older than **7 days** from `/tmp`
+* Removes empty directories older than **7 days** from `/tmp`
+* Removes files older than **7 days** from `/var/tmp`
+* Removes empty directories older than **7 days** from `/var/tmp`
+* Removes packages that are no longer required
+* Cleans the APT package cache
 * Displays journal, temporary-directory, APT-cache, and filesystem usage
 
-Run:
+Run directly from this directory:
+
+```bash
+./cleanup.sh
+```
+
+If installed system-wide:
 
 ```bash
 cleanup
 ```
-
-This script does not:
-
-* Deploy applications
-* Modify SSH configuration
-* Modify firewall configuration
-* Modify Caddy configuration
-* Delete application releases
-* Delete deployment logs
-* Delete backups
-* Modify `/opt/backups`
-* Modify the deployment environment
-
-## Recommended Usage
-
-The scripts have intentionally separate responsibilities.
-
-For an operating-system package refresh:
-
-```bash
-refresh
-```
-
-For filesystem and journal cleanup:
-
-```bash
-cleanup
-```
-
-If both operations are required, run them separately rather than combining their responsibilities into another script.
 
 ## Safety Boundaries
 
-The maintenance scripts intentionally avoid application and deployment data.
+These utilities are intended for operating-system maintenance.
 
-In particular, they do not automatically remove:
+They do **not** intentionally target or remove:
 
 ```text
 /opt/platform/releases
@@ -112,31 +87,52 @@ In particular, they do not automatically remove:
 /opt/backups
 ```
 
-Application release pruning, deployment cleanup, backup retention, and application-specific cleanup must be handled by their respective deployment or backup mechanisms.
+Application release pruning, deployment cleanup, backup retention, and application-specific cleanup are outside the scope of these scripts.
 
-Do not add broad recursive deletion commands to these scripts without explicitly defining the target path and retention policy.
+`cleanup.sh` limits temporary-file cleanup to `/tmp` and `/var/tmp` and uses filesystem-boundary protection when traversing those paths.
+
+Before modifying cleanup paths or retention periods, review the affected files and expected operational impact.
 
 ## Required Access
 
-The scripts expect the permanent administrator account to have working passwordless sudo access.
+The scripts require non-interactive administrative access through `sudo`.
 
-Before running either script, verify:
+Verify access before running them:
 
 ```bash
 sudo -n true
 ```
 
-A successful command produces no output and exits with status `0`.
+A successful command exits with status `0` and produces no output.
 
-## Execution
+Do not grant broader administrative privileges solely to make these utilities run.
 
-Make sure the scripts are executable:
+## Installation
+
+The scripts can be executed directly from the repository:
 
 ```bash
-chmod +x /path/to/refresh /path/to/cleanup
+chmod +x refresh.sh cleanup.sh
 ```
 
-Then run the required operation:
+```bash
+./refresh.sh
+```
+
+or:
+
+```bash
+./cleanup.sh
+```
+
+For convenient system-wide access, install them into `/usr/local/bin/`:
+
+```bash
+sudo install -m 0755 refresh.sh /usr/local/bin/refresh
+sudo install -m 0755 cleanup.sh /usr/local/bin/cleanup
+```
+
+They can then be run as:
 
 ```bash
 refresh
@@ -148,32 +144,7 @@ or:
 cleanup
 ```
 
-## Recommended Command Installation
-
-For servers using these maintenance utilities regularly, it is recommended to install the scripts into `/usr/local/bin/`.
-
-This allows them to be executed directly as:
-
-```bash
-refresh
-```
-
-and:
-
-```bash
-cleanup
-```
-
-For example:
-
-```bash
-sudo install -m 0755 refresh.sh /usr/local/bin/refresh
-sudo install -m 0755 cleanup.sh /usr/local/bin/cleanup
-```
-
-The repository remains the source of truth for the scripts, while `/usr/local/bin/` provides convenient system-wide command access.
-
-This is a recommendation, not a requirement. You may instead keep the scripts in another location and execute them according to your server's preferred directory structure and operational practices.
+The repository remains the source of truth. Review updated scripts before replacing installed copies.
 
 ## Failure Behavior
 
@@ -185,8 +156,81 @@ set -euo pipefail
 
 A failed command causes the script to stop rather than silently continuing with potentially incomplete maintenance.
 
-Review the command output before treating a maintenance operation as successful.
+A successful execution returns exit status `0`.
 
-## Scope
+Check the exit status when needed:
 
-These scripts are intentionally generic server-maintenance utilities.
+```bash
+echo $?
+```
+
+A failed operation is not automatically rolled back. Review the command output before treating the maintenance operation as complete.
+
+## Maintenance Separation
+
+The utilities intentionally have separate responsibilities:
+
+```text
+refresh.sh
+    └── Package maintenance
+
+cleanup.sh
+    ├── Journal cleanup
+    ├── Temporary-file cleanup
+    └── APT cleanup
+```
+
+Run them independently according to the maintenance task required.
+
+They do not replace the deployment engine:
+
+```text
+/opt/platform/deploy.sh
+```
+
+Application deployment, rollback, release pruning, health validation, and deployment logging remain part of the deployment architecture.
+
+## Customization
+
+The scripts are reference utilities and may need adjustment for the target environment.
+
+Before changing them, consider:
+
+* Operating-system and distribution differences
+* Retention requirements
+* Application behavior
+* Logging requirements
+* Package-management policies
+* Compliance requirements
+* Filesystem layout
+
+Test customized versions before using them on production systems.
+
+## Security Reporting
+
+For bugs and general issues, use the repository's issue-reporting channels.
+
+For security vulnerabilities, follow the repository's [Security Policy](../../.github/SECURITY.md).
+
+Do not publicly disclose:
+
+* Passwords
+* Private keys
+* API tokens
+* Access tokens
+* Cloud credentials
+* Production secrets
+* Sensitive vulnerability details
+
+## Related Documentation
+
+| Document                                     | Purpose                                       |
+| -------------------------------------------- | --------------------------------------------- |
+| [Root README](../../README.md)               | Repository architecture and overall usage     |
+| [Bootstrap README](../README.md)             | Bootstrap architecture and boundaries         |
+| [Setup README](../setup/README.md)           | Initial server provisioning                   |
+| [Terms](../../TERMS.md)                      | Repository-wide terms                         |
+| [Policy](../../POLICY.md)                    | Security, privacy, and responsible-use policy |
+| [Conditions](../../CONDITIONS.md)            | Operational conditions and responsibilities   |
+| [License](../../LICENSE)                     | MIT License                                   |
+| [Security Policy](../../.github/SECURITY.md) | Security vulnerability reporting              |
