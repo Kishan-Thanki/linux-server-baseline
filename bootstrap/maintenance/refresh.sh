@@ -1,104 +1,58 @@
 #!/usr/bin/env bash
 
-# =============================================================================
 # refresh.sh
 #
 # Purpose:
-# Perform a manual system package refresh.
+#   Perform a manual system package refresh.
 #
-# This script:
+# Operations:
+#   - Update the APT package index
+#   - Upgrade installed packages
+#   - Remove packages that are no longer required
+#   - Clean the local APT package cache
+#   - Verify the resulting package state
 #
-# - Updates the APT package index
-# - Upgrades installed packages
-# - Removes packages that are no longer required
-# - Cleans the local APT package cache
+# Usage:
+#   ./refresh.sh
 #
-# IMPORTANT:
-#
-# This is a manual maintenance operation.
-#
-#
-# Run as the administrator:
-#
-#   refresh
-#
-# =============================================================================
+# Requirements:
+#   - Bash
+#   - sudo with non-interactive administrative access
+#   - APT-based Linux distribution
 
 set -euo pipefail
 
-echo "====================================="
-echo " System Refresh"
-echo "====================================="
+export DEBIAN_FRONTEND=noninteractive
 
-# =============================================================================
-# 1. Verify Administrative Access
-# =============================================================================
-
-echo
 echo "==> Checking administrator privileges..."
 
 if ! sudo -n true; then
-    echo "ERROR: Current user does not have working passwordless sudo."
-    echo "Run this script as the administrator."
+    echo "ERROR: Current user does not have working passwordless sudo." >&2
+    echo "Run this script as the administrator." >&2
     exit 1
 fi
 
 echo "✓ Administrator privileges verified."
 
-# =============================================================================
-# 2. Update Package Index
-# =============================================================================
-
 echo
 echo "==> Updating package index..."
-
-sudo DEBIAN_FRONTEND=noninteractive apt-get update
-
+sudo apt-get update
 echo "✓ Package index updated."
-
-# =============================================================================
-# 3. Upgrade Installed Packages
-# =============================================================================
 
 echo
 echo "==> Upgrading installed packages..."
-
-sudo DEBIAN_FRONTEND=noninteractive \
-    apt-get upgrade -y
-
+sudo apt-get upgrade -y
 echo "✓ Packages upgraded."
-
-# =============================================================================
-# 4. Remove Unnecessary Packages
-# =============================================================================
 
 echo
 echo "==> Removing unnecessary packages..."
-
-sudo DEBIAN_FRONTEND=noninteractive \
-    apt-get autoremove -y
-
+sudo apt-get autoremove -y
 echo "✓ Unnecessary packages removed."
-
-# =============================================================================
-# 5. Clean Package Cache
-# =============================================================================
 
 echo
 echo "==> Cleaning package cache..."
-
 sudo apt-get clean
-
 echo "✓ Package cache cleaned."
-
-# =============================================================================
-# 6. Verification
-# =============================================================================
-
-echo
-echo "====================================="
-echo " Verification"
-echo "====================================="
 
 echo
 echo "==> Checking for remaining upgradable packages..."
@@ -121,7 +75,7 @@ echo
 echo "==> Checking APT package state..."
 
 if ! sudo dpkg --audit; then
-    echo "ERROR: dpkg reported package configuration problems."
+    echo "ERROR: dpkg reported package configuration problems." >&2
     exit 1
 fi
 
@@ -129,10 +83,7 @@ echo "✓ dpkg package state is clean."
 
 echo
 echo "==> Checking available disk space..."
-
 df -h /
 
 echo
-echo "====================================="
-echo " System refresh completed"
-echo "====================================="
+echo "✓ System refresh completed successfully."
