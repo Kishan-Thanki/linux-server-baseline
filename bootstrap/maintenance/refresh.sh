@@ -105,8 +105,8 @@ echo "==> Checking for remaining upgradable packages..."
 
 UPGRADABLE_PACKAGES="$(
     apt list --upgradable 2>/dev/null |
-    tail -n +2 |
-    sed '/^[[:space:]]*$/d'
+        tail -n +2 |
+        sed '/^[[:space:]]*$/d'
 )"
 
 if [[ -n "$UPGRADABLE_PACKAGES" ]]; then
