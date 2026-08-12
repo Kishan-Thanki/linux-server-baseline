@@ -1,0 +1,11 @@
+---
+
+essential_packages:
+  - sudo
+  - curl
+  - wget
+  - vim
+  - ca-certificates
+  - gnupg
+  - unzip
+  - rsync

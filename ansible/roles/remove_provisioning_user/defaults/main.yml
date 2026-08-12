@@ -1,0 +1,11 @@
+---
+
+remove_provisioning_user_automation_user: ansible
+
+remove_provisioning_user_min_uid: 1000
+
+remove_provisioning_user_protected_users:
+  - root
+  - admin
+  - ansible
+  - deploy

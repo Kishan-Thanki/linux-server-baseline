@@ -1,0 +1,70 @@
+---
+- name: Require Ansible SSH public key file
+  ansible.builtin.assert:
+    that:
+      - ansible_user_ssh_public_key_file | length > 0
+      - ansible_user_ssh_public_key_file is file
+    fail_msg: >-
+      Provide ansible_user_ssh_public_key_file pointing to the Ansible
+      public SSH key.
+
+- name: Create Ansible account
+  ansible.builtin.user:
+    name: "{{ ansible_user_name }}"
+    home: "{{ ansible_user_home }}"
+    shell: /bin/bash
+    create_home: true
+    groups:
+      - sudo
+    append: true
+    state: present
+
+- name: Create Ansible SSH directory
+  ansible.builtin.file:
+    path: "{{ ansible_user_home }}/.ssh"
+    state: directory
+    owner: "{{ ansible_user_name }}"
+    group: "{{ ansible_user_name }}"
+    mode: "0700"
+  when: not ansible_check_mode
+
+- name: Install Ansible SSH public key
+  ansible.posix.authorized_key:
+    user: "{{ ansible_user_name }}"
+    key: "{{ lookup('ansible.builtin.file', ansible_user_ssh_public_key_file) }}"
+    state: present
+    manage_dir: false
+  when: not ansible_check_mode
+
+- name: Configure Ansible passwordless sudo
+  ansible.builtin.copy:
+    dest: "/etc/sudoers.d/{{ ansible_user_name }}"
+    content: "{{ ansible_user_name }} ALL=(ALL) NOPASSWD: ALL\n"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Verify Ansible account
+  ansible.builtin.command:
+    cmd: "id {{ ansible_user_name }}"
+  register: ansible_user_id
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Verify Ansible sudo membership
+  ansible.builtin.command:
+    cmd: "id -nG {{ ansible_user_name }}"
+  register: ansible_user_groups
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: Require Ansible sudo membership
+  ansible.builtin.assert:
+    that:
+      - "'sudo' in ansible_user_groups.stdout.split()"
+    fail_msg: >-
+      Ansible account {{ ansible_user_name }} is not a member of the sudo group.
+  when: not ansible_check_mode

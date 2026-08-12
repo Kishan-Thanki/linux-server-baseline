@@ -1,0 +1,62 @@
+---
+- name: Require deployment SSH public key file
+  ansible.builtin.assert:
+    that:
+      - deploy_ssh_public_key_file | length > 0
+      - deploy_ssh_public_key_file is file
+    fail_msg: >-
+      Provide deploy_ssh_public_key_file pointing to the deployment
+      public SSH key on the Ansible controller.
+
+- name: Create deployment account
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    home: "{{ deploy_home }}"
+    shell: /bin/bash
+    create_home: true
+    password_lock: true
+    state: present
+
+- name: Ensure deployment user is not in sudo group
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    groups: []
+    append: false
+
+- name: Create deployment SSH directory
+  ansible.builtin.file:
+    path: "{{ deploy_home }}/.ssh"
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0700"
+
+- name: Install deployment SSH public key
+  ansible.posix.authorized_key:
+    user: "{{ deploy_user }}"
+    key: "{{ lookup('ansible.builtin.file', deploy_ssh_public_key_file) }}"
+    state: present
+    manage_dir: false
+  when: not ansible_check_mode
+
+- name: Verify deployment account
+  ansible.builtin.command:
+    cmd: "id {{ deploy_user }}"
+  register: deploy_account_check
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Verify deployment account groups
+  ansible.builtin.command:
+    cmd: "id -nG {{ deploy_user }}"
+  register: deploy_groups
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Require deployment account is not in sudo group
+  ansible.builtin.assert:
+    that:
+      - "'sudo' not in deploy_groups.stdout.split()"
+    fail_msg: >-
+      Deployment account {{ deploy_user }} must not belong to the sudo group.
+  when: not ansible_check_mode

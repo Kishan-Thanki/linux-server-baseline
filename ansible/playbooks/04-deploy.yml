@@ -1,0 +1,7 @@
+---
+- name: Configure deployment account
+  hosts: servers
+  become: true
+
+  roles:
+    - deploy
