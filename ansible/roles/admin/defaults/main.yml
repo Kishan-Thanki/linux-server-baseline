@@ -1,0 +1,9 @@
+---
+
+admin_user: admin
+admin_home: "/home/{{ admin_user }}"
+admin_shell: /bin/bash
+
+admin_ssh_public_key_file: ""
+
+admin_sudoers_file: "/etc/sudoers.d/{{ admin_user }}"
