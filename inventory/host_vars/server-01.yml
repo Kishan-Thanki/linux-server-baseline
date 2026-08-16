@@ -1,0 +1,17 @@
+---
+# ==============================================================================
+# CRITICAL: Add your actual public SSH keys here BEFORE running the baseline!
+#
+# If you leave these empty, the baseline will disable password authentication
+# and you will permanently lock yourself out of the server.
+#
+# Example format: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@machine"
+# ==============================================================================
+
+# Public key for the human administrator (the 'sysadmin' account)
+# You will use this key to manage the server manually.
+system_admin_ssh_public_key: ""
+
+# Public key for automated tools (the 'automation' account)
+# Use this for GitHub Actions, GitLab CI, or external Ansible controllers.
+automation_user_ssh_public_key: ""
