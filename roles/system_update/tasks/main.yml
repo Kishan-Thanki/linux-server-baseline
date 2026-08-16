@@ -1,0 +1,22 @@
+---
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoremove: true
+    autoclean: true
+
+- name: Check if a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: system_update_reboot_required_file
+
+- name: Reboot the server if required
+  ansible.builtin.reboot:
+    msg: "Ansible triggered a reboot due to system updates."
+    reboot_timeout: 300
+  when: system_update_reboot_required_file.stat.exists

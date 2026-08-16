@@ -1,0 +1,6 @@
+---
+- name: Update system packages
+  hosts: servers
+  become: true
+  roles:
+    - system_update
