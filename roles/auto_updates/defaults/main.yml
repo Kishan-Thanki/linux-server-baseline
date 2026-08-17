@@ -1,0 +1,8 @@
+---
+auto_updates_enabled: true
+
+auto_updates_remove_unused: true
+
+auto_updates_random_sleep: 300
+
+auto_updates_network_online_timeout: 60
