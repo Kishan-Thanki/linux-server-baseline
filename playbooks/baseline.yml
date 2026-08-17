@@ -1,0 +1,39 @@
+---
+- name: System Update
+  ansible.builtin.import_playbook: 01-system-update.yml
+
+- name: Provision System Admin
+  ansible.builtin.import_playbook: 02-system-admin.yml
+
+- name: Provision Automation User
+  ansible.builtin.import_playbook: 03-automation-user.yml
+
+- name: Apply SSH Hardening
+  ansible.builtin.import_playbook: 04-ssh-hardening.yml
+
+- name: Configure Firewall
+  ansible.builtin.import_playbook: 05-firewall.yml
+
+- name: Configure Fail2ban
+  ansible.builtin.import_playbook: 06-fail2ban.yml
+
+- name: Configure Time Synchronization
+  ansible.builtin.import_playbook: 07-ntp.yml
+
+- name: Configure Persistent Journald
+  ansible.builtin.import_playbook: 08-journald.yml
+
+- name: Configure Auditd
+  ansible.builtin.import_playbook: 09-auditd.yml
+
+- name: Apply Sysctl Hardening
+  ansible.builtin.import_playbook: 10-sysctl.yml
+
+- name: Configure Automatic Security Updates
+  ansible.builtin.import_playbook: 11-auto-updates.yml
+
+- name: Configure Swap
+  ansible.builtin.import_playbook: 12-swap.yml
+
+- name: Configure Sysstat
+  ansible.builtin.import_playbook: 13-sysstat.yml
