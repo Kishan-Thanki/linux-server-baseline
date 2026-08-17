@@ -1,4 +1,10 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This swap role supports Ubuntu only."
+
 - name: Check current swap status
   ansible.builtin.command:
     cmd: swapon --show --noheadings
@@ -23,7 +29,7 @@
     - swap_enabled
     - not swap_file_status.stat.exists
 
-- name: Create or verify swap signature
+- name: Ensure swap signature exists
   community.general.filesystem:
     dev: "{{ swap_file }}"
     fstype: swap
@@ -43,21 +49,14 @@
   when:
     - swap_enabled
 
-- name: Reload systemd manager configuration
-  ansible.builtin.systemd_service:
-    daemon_reload: true
+- name: Activate swap
+  ansible.builtin.command:
+    cmd: "swapon {{ swap_file }}"
   when:
     - swap_enabled
+    - swap_file not in (swap_status.stdout_lines | map('split') | map('first') | list)
     - not ansible_check_mode
-
-- name: Activate swap through systemd
-  ansible.builtin.systemd_service:
-    name: "{{ swap_file | basename | replace('-', '\\x2d') }}.swap"
-    state: started
-  when:
-    - swap_enabled
-    - not ansible_check_mode
-    - swap_status.stdout | trim | length == 0
+  changed_when: true
 
 - name: Verify active swap
   ansible.builtin.command:

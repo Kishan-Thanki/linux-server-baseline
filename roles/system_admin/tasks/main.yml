@@ -1,10 +1,16 @@
 ---
-- name: Ensure sudo/wheel group exists for system_admin user
+- name: Validate required system admin SSH key configuration
+  ansible.builtin.assert:
+    that:
+      - system_admin_ssh_public_key | length > 0
+    fail_msg: "system_admin_ssh_public_key must point to the admin public key file."
+
+- name: Ensure sudo group exists
   ansible.builtin.group:
     name: "{{ system_admin_sudo_group }}"
     state: present
 
-- name: Create system_admin user
+- name: Create or update system admin user
   ansible.builtin.user:
     name: "{{ system_admin_name }}"
     shell: "{{ system_admin_shell }}"
@@ -12,16 +18,17 @@
     groups:
       - "{{ system_admin_sudo_group }}"
     append: true
+    password: "!"
     password_lock: true
     state: present
 
-- name: Add SSH authorized key for system_admin user
+- name: Add SSH authorized key for system admin user
   ansible.posix.authorized_key:
     user: "{{ system_admin_name }}"
-    key: "{{ lookup('file', system_admin_ssh_public_key) }}"
+    key: "{{ lookup('ansible.builtin.file', system_admin_ssh_public_key) }}"
     state: present
 
-- name: Configure passwordless sudo for system_admin user
+- name: Configure passwordless sudo for system admin user
   ansible.builtin.template:
     src: sudoers.j2
     dest: "/etc/sudoers.d/{{ system_admin_name }}"

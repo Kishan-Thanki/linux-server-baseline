@@ -1,4 +1,10 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This system_update role supports Ubuntu only."
+
 - name: Update apt package cache
   ansible.builtin.apt:
     update_cache: true
@@ -7,8 +13,8 @@
 - name: Upgrade installed packages
   ansible.builtin.apt:
     upgrade: dist
-    autoremove: true
     autoclean: true
+    fail_on_autoremove: true
 
 - name: Check if a reboot is required
   ansible.builtin.stat:

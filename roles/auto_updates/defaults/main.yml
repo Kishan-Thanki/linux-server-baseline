@@ -1,7 +1,7 @@
 ---
 auto_updates_enabled: true
 
-auto_updates_remove_unused: true
+auto_updates_remove_unused: false
 
 auto_updates_random_sleep: 300
 
