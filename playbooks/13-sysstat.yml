@@ -1,0 +1,6 @@
+---
+- name: Apply Local Performance Accounting (sysstat)
+  hosts: servers
+  become: true
+  roles:
+    - sysstat

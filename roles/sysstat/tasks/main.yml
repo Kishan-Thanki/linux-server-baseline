@@ -1,0 +1,45 @@
+---
+- name: Ensure sysstat package is installed
+  ansible.builtin.package:
+    name: sysstat
+    state: present
+
+- name: Enable sysstat data collection on Debian family
+  ansible.builtin.lineinfile:
+    path: /etc/default/sysstat
+    regexp: "^ENABLED="
+    line: 'ENABLED="true"'
+    create: true
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure sysstat history retention on Debian family
+  ansible.builtin.lineinfile:
+    path: /etc/sysstat/sysstat
+    regexp: "^HISTORY="
+    line: "HISTORY={{ sysstat_history_days }}"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure sysstat history retention on Red Hat family
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/sysstat
+    regexp: "^HISTORY="
+    line: "HISTORY={{ sysstat_history_days }}"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable sysstat collection timer on Red Hat family
+  ansible.builtin.systemd:
+    name: sysstat-collect.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Enable sysstat summary timer on Red Hat family
+  ansible.builtin.systemd:
+    name: sysstat-summary.timer
+    state: started
+    enabled: true
+  when: ansible_facts['os_family'] == 'RedHat'
