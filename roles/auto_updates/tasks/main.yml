@@ -1,0 +1,58 @@
+---
+- name: Ensure unattended-upgrades is installed on Debian family
+  ansible.builtin.package:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure APT automatic updates
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Configure unattended-upgrades
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Validate unattended-upgrades configuration
+  ansible.builtin.command:
+    cmd: unattended-upgrade --dry-run
+  changed_when: false
+  check_mode: false
+  when:
+    - ansible_facts['os_family'] == 'Debian'
+    - auto_updates_enabled
+
+- name: Ensure dnf-automatic is installed on Red Hat family
+  ansible.builtin.package:
+    name: dnf-automatic
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Configure dnf-automatic
+  ansible.builtin.template:
+    src: automatic.conf.j2
+    dest: /etc/dnf/automatic.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ensure dnf-automatic install timer is configured
+  ansible.builtin.systemd:
+    name: dnf-automatic-install.timer
+    state: "{{ 'started' if auto_updates_enabled else 'stopped' }}"
+    enabled: "{{ auto_updates_enabled }}"
+    daemon_reload: true
+  when: ansible_facts['os_family'] == 'RedHat'

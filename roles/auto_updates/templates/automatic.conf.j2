@@ -1,0 +1,11 @@
+# Managed by Ansible - Do not edit manually
+
+[commands]
+upgrade_type = security
+random_sleep = {{ auto_updates_random_sleep }}
+network_online_timeout = {{ auto_updates_network_online_timeout }}
+download_updates = yes
+apply_updates = yes
+
+[base]
+debuglevel = 1

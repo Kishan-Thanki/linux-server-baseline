@@ -1,0 +1,6 @@
+---
+- name: Apply Automated Security Patching
+  hosts: servers
+  become: true
+  roles:
+    - auto_updates

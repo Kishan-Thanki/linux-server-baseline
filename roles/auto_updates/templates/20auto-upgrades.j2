@@ -1,0 +1,5 @@
+# Managed by Ansible - Do not edit manually
+
+APT::Periodic::Update-Package-Lists "{{ 1 if auto_updates_enabled else 0 }}";
+APT::Periodic::Unattended-Upgrade "{{ 1 if auto_updates_enabled else 0 }}";
+APT::Periodic::AutocleanInterval "7";
