@@ -1,0 +1,6 @@
+---
+- name: Apply kernel network hardening settings
+  hosts: servers
+  become: true
+  roles:
+    - sysctl
