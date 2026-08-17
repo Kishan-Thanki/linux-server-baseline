@@ -1,0 +1,36 @@
+---
+- name: Ensure Fail2ban is installed on Debian family
+  ansible.builtin.package:
+    name: fail2ban
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Ensure Fail2ban and firewalld integration are installed on Red Hat family
+  ansible.builtin.package:
+    name:
+      - fail2ban
+      - fail2ban-firewalld
+      - fail2ban-systemd
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Deploy Fail2ban jail configuration
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+- name: Validate Fail2ban configuration
+  ansible.builtin.command:
+    cmd: fail2ban-client -t
+  changed_when: false
+  check_mode: false
+
+- name: Ensure Fail2ban service is enabled and started
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

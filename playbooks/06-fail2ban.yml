@@ -1,0 +1,6 @@
+---
+- name: Apply Intrusion Prevention Security (Fail2ban)
+  hosts: servers
+  become: true
+  roles:
+    - fail2ban
