@@ -1,0 +1,6 @@
+---
+- name: Apply Kernel-Level System Auditing (auditd)
+  hosts: servers
+  become: true
+  roles:
+    - auditd

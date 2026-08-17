@@ -1,0 +1,10 @@
+---
+- name: Validate and load audit rules
+  ansible.builtin.shell:
+    cmd: |
+      augenrules --check &&
+      augenrules --load
+  args:
+    executable: /bin/bash
+  changed_when: true
+  check_mode: false

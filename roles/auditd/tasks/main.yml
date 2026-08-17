@@ -1,0 +1,35 @@
+---
+- name: Ensure auditd package is installed on Debian family
+  ansible.builtin.package:
+    name: auditd
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Ensure audit package is installed on Red Hat family
+  ansible.builtin.package:
+    name: audit
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ensure audit rules directory exists
+  ansible.builtin.file:
+    path: /etc/audit/rules.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy custom audit rules
+  ansible.builtin.template:
+    src: 99-custom.rules.j2
+    dest: /etc/audit/rules.d/99-custom.rules
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Validate and load audit rules
+
+- name: Ensure auditd service is enabled and started
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
