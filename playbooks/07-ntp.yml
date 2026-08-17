@@ -1,0 +1,6 @@
+---
+- name: Apply Time Synchronization and Timezone
+  hosts: servers
+  become: true
+  roles:
+    - ntp
