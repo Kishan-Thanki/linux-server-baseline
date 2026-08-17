@@ -1,0 +1,7 @@
+Port {{ ssh_hardening_port }}
+PermitRootLogin {{ ssh_hardening_permit_root_login }}
+PasswordAuthentication {{ ssh_hardening_password_authentication }}
+PubkeyAuthentication {{ ssh_hardening_pubkey_authentication }}
+X11Forwarding no
+MaxAuthTries 3
+AllowUsers {{ ssh_hardening_allow_users | join(' ') }}
