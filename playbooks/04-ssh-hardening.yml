@@ -1,0 +1,6 @@
+---
+- name: Apply SSH Security Hardening
+  hosts: servers
+  become: true
+  roles:
+    - ssh_hardening

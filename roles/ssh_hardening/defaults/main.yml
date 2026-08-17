@@ -1,0 +1,21 @@
+---
+ssh_hardening_port: 22
+
+ssh_hardening_permit_root_login: "no"
+
+ssh_hardening_password_authentication: "no"
+
+ssh_hardening_pubkey_authentication: "yes"
+
+# List of SSH users permitted to log in.
+#
+# NOTE: 'ubuntu' is included by default as a temporary safety net during
+# initial server provisioning. If your cloud provider uses a different default
+# user (e.g., 'ec2-user', 'debian', 'admin'), update or override this list.
+#
+# Once 99-remove-default-user.yml is executed, the bootstrap account will be
+# removed from the system entirely.
+ssh_hardening_allow_users:
+  - ubuntu
+  - sysadmin
+  - automation
