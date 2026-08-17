@@ -1,0 +1,18 @@
+---
+- name: Ensure sysctl.d directory exists
+  ansible.builtin.file:
+    path: /etc/sysctl.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Apply kernel network hardening settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value | string }}"
+    sysctl_file: /etc/sysctl.d/99-security.conf
+    sysctl_set: true
+    state: present
+    reload: true
+  loop: "{{ sysctl_settings | dict2items }}"
