@@ -1,0 +1,50 @@
+---
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+
+- name: Ensure chrony package is installed
+  ansible.builtin.package:
+    name: chrony
+    state: present
+
+- name: Set Chrony configuration path for Debian family
+  ansible.builtin.set_fact:
+    ntp_config_path: "/etc/chrony/chrony.conf"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Set Chrony configuration path for Red Hat family
+  ansible.builtin.set_fact:
+    ntp_config_path: "/etc/chrony.conf"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set Chrony service name for Debian family
+  ansible.builtin.set_fact:
+    ntp_service_name: "chrony"
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: Set Chrony service name for Red Hat family
+  ansible.builtin.set_fact:
+    ntp_service_name: "chronyd"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Deploy Chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ ntp_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chrony
+
+- name: Validate Chrony configuration
+  ansible.builtin.command:
+    cmd: "chronyd -p -f {{ ntp_config_path }}"
+  changed_when: false
+  check_mode: false
+
+- name: Ensure Chrony service is enabled and started
+  ansible.builtin.service:
+    name: "{{ ntp_service_name }}"
+    state: started
+    enabled: true
