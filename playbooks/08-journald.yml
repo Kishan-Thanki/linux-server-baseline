@@ -1,0 +1,6 @@
+---
+- name: Configure Persistent System Logging (journald)
+  hosts: servers
+  become: true
+  roles:
+    - journald

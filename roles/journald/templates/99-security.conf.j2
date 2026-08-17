@@ -1,0 +1,8 @@
+# Managed by Ansible - Do not edit manually
+
+[Journal]
+Storage={{ journald_storage }}
+SystemMaxUse={{ journald_system_max_use }}
+SystemKeepFree={{ journald_system_keep_free }}
+MaxRetentionSec={{ journald_max_retention_sec }}
+Compress={{ 'yes' if journald_compress else 'no' }}

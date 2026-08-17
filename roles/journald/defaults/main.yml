@@ -1,0 +1,10 @@
+---
+journald_storage: "persistent"
+
+journald_system_max_use: "1G"
+
+journald_system_keep_free: "500M"
+
+journald_max_retention_sec: "30day"
+
+journald_compress: true
