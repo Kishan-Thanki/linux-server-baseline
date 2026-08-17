@@ -1,0 +1,31 @@
+---
+- name: Ensure sudo/wheel group exists for automation user
+  ansible.builtin.group:
+    name: "{{ automation_user_sudo_group }}"
+    state: present
+
+- name: Create server automation user
+  ansible.builtin.user:
+    name: "{{ automation_user_name }}"
+    shell: "{{ automation_user_shell }}"
+    create_home: true
+    groups:
+      - "{{ automation_user_sudo_group }}"
+    append: true
+    password_lock: true
+    state: present
+
+- name: Add dedicated SSH authorized key for automation user
+  ansible.posix.authorized_key:
+    user: "{{ automation_user_name }}"
+    key: "{{ lookup('file', automation_user_ssh_public_key) }}"
+    state: present
+
+- name: Configure passwordless sudo for automation user
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ automation_user_name }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

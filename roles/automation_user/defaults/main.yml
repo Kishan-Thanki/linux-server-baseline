@@ -1,0 +1,12 @@
+---
+automation_user_name: "automation"
+
+automation_user_shell: "/bin/bash"
+
+automation_user_ssh_public_key: ""
+
+automation_user_sudo_group_map:
+  Debian: "sudo"
+  RedHat: "wheel"
+
+automation_user_sudo_group: "{{ automation_user_sudo_group_map[ansible_facts['os_family']] }}"
