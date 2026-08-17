@@ -1,0 +1,29 @@
+---
+- name: Ensure firewalld package is installed
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+
+- name: Ensure firewalld service is enabled and started
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Configure allowed ports in the default zone
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: "{{ firewall_default_zone }}"
+  loop: "{{ firewall_allowed_ports }}"
+
+- name: Remove unnecessary firewalld services
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: disabled
+    zone: "{{ firewall_default_zone }}"
+  loop: "{{ firewall_blocked_services }}"
