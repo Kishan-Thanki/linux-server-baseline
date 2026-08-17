@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 
 echo "==> Checking Ansible playbook syntax"
 
-for playbook in playbooks/*.yml; do
+find playbooks -type f -name '*.yml' -print | sort | while IFS= read -r playbook; do
     echo "    $playbook"
     ansible-playbook "$playbook" \
         --syntax-check \
