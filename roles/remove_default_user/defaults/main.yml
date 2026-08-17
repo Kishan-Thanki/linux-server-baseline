@@ -1,0 +1,6 @@
+---
+remove_default_user_name: "ubuntu"
+
+remove_default_user_protected_users:
+  - "sysadmin"
+  - "automation"

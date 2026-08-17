@@ -1,0 +1,6 @@
+---
+- name: Remove Cloud Provisioned User
+  hosts: servers
+  become: true
+  roles:
+    - remove_default_user

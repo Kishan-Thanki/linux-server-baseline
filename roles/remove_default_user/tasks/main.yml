@@ -1,0 +1,24 @@
+---
+- name: Validate default user configuration
+  ansible.builtin.assert:
+    that:
+      - remove_default_user_name | length > 0
+      - remove_default_user_name not in remove_default_user_protected_users
+    fail_msg: >-
+      remove_default_user_name must be explicitly configured and must not
+      match a protected user account.
+
+- name: Check whether default user exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ remove_default_user_name }}"
+    fail_key: false
+  register: remove_default_user_lookup
+  failed_when: false
+
+- name: Remove cloud provisioned user
+  ansible.builtin.user:
+    name: "{{ remove_default_user_name }}"
+    state: absent
+    remove: true
+  when: remove_default_user_name in (ansible_facts.getent_passwd | default({}))
