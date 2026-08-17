@@ -1,0 +1,31 @@
+name: Bug Report
+description: File a bug report for an unexpected failure in a playbook or role.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the Issue
+      description: A clear description of what went wrong.
+      placeholder: Playbook failed at task...
+    validations:
+      required: true
+  - type: input
+    id: os_version
+    attributes:
+      label: Target OS and Version
+      description: e.g., Ubuntu 22.04, Rocky Linux 9
+      placeholder: Ubuntu 24.04
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Logs / Traceback
+      description: Paste the relevant Ansible output.
+      placeholder: |
+        TASK [fail2ban : Deploy Fail2ban jail configuration] *************************
+        fatal: [server1]: FAILED! => ...
+    validations:
+      required: true
