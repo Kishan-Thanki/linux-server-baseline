@@ -1,0 +1,6 @@
+---
+- name: Apply Host-Based Firewall Security
+  hosts: servers
+  become: true
+  roles:
+    - firewall
