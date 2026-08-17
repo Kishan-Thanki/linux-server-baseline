@@ -1,0 +1,12 @@
+---
+system_admin_name: "sysadmin"
+
+system_admin_shell: "/bin/bash"
+
+system_admin_ssh_public_key: ""
+
+system_admin_sudo_group_map:
+  Debian: "sudo"
+  RedHat: "wheel"
+
+system_admin_sudo_group: "{{ system_admin_sudo_group_map[ansible_facts['os_family']] }}"
