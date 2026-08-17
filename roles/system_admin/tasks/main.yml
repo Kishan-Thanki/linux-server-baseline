@@ -1,0 +1,31 @@
+---
+- name: Ensure sudo/wheel group exists for system_admin user
+  ansible.builtin.group:
+    name: "{{ system_admin_sudo_group }}"
+    state: present
+
+- name: Create system_admin user
+  ansible.builtin.user:
+    name: "{{ system_admin_name }}"
+    shell: "{{ system_admin_shell }}"
+    create_home: true
+    groups:
+      - "{{ system_admin_sudo_group }}"
+    append: true
+    password_lock: true
+    state: present
+
+- name: Add SSH authorized key for system_admin user
+  ansible.posix.authorized_key:
+    user: "{{ system_admin_name }}"
+    key: "{{ lookup('file', system_admin_ssh_public_key) }}"
+    state: present
+
+- name: Configure passwordless sudo for system_admin user
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ system_admin_name }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

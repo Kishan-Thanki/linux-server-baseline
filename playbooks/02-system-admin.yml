@@ -1,0 +1,6 @@
+---
+- name: Provision Primary Admin User
+  hosts: servers
+  become: true
+  roles:
+    - system_admin
