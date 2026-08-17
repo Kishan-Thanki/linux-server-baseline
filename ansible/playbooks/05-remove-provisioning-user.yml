@@ -1,7 +1,0 @@
----
-- name: Remove cloud provisioning user
-  hosts: servers
-  become: true
-
-  roles:
-    - remove_provisioning_user

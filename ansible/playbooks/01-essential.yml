@@ -1,7 +1,0 @@
----
-- name: Configure essential server prerequisites
-  hosts: servers
-  become: true
-
-  roles:
-    - essential

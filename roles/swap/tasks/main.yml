@@ -1,0 +1,71 @@
+---
+- name: Check current swap status
+  ansible.builtin.command:
+    cmd: swapon --show --noheadings
+  register: swap_status
+  changed_when: false
+  check_mode: false
+
+- name: Check configured swap file
+  ansible.builtin.stat:
+    path: "{{ swap_file }}"
+  register: swap_file_status
+  when: swap_enabled
+
+- name: Create swap file when missing
+  community.general.filesize:
+    path: "{{ swap_file }}"
+    size: "{{ swap_size_mb }}M"
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - swap_enabled
+    - not swap_file_status.stat.exists
+
+- name: Create or verify swap signature
+  community.general.filesystem:
+    dev: "{{ swap_file }}"
+    fstype: swap
+    state: present
+  when:
+    - swap_enabled
+
+- name: Persist swap in /etc/fstab
+  ansible.posix.mount:
+    path: none
+    src: "{{ swap_file }}"
+    fstype: swap
+    opts: defaults
+    dump: "0"
+    passno: "0"
+    state: present
+  when:
+    - swap_enabled
+
+- name: Reload systemd manager configuration
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when:
+    - swap_enabled
+    - not ansible_check_mode
+
+- name: Activate swap through systemd
+  ansible.builtin.systemd_service:
+    name: "{{ swap_file | basename | replace('-', '\\x2d') }}.swap"
+    state: started
+  when:
+    - swap_enabled
+    - not ansible_check_mode
+    - swap_status.stdout | trim | length == 0
+
+- name: Verify active swap
+  ansible.builtin.command:
+    cmd: swapon --show
+  register: swap_verification
+  changed_when: false
+  check_mode: false
+
+- name: Display active swap
+  ansible.builtin.debug:
+    var: swap_verification.stdout_lines
