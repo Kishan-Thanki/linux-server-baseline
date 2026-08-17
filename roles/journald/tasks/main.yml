@@ -1,0 +1,23 @@
+---
+- name: Ensure journald drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy journald security configuration
+  ansible.builtin.template:
+    src: 99-security.conf.j2
+    dest: /etc/systemd/journald.conf.d/99-security.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-journald
+
+- name: Verify effective journald configuration
+  ansible.builtin.command:
+    cmd: systemd-analyze cat-config systemd/journald.conf
+  changed_when: false
+  check_mode: false
