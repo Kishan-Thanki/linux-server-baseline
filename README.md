@@ -9,25 +9,29 @@ The project is intentionally modular so individual components can be applied ind
 ## Repository Structure
 
 ```text
-server-ops/
-└── ansible/
-    ├── README.md
-    ├── ansible.cfg
-    ├── requirements.yml
-    ├── inventory/
-    │   └── inventory.ini
-    ├── playbooks/
-    │   ├── baseline.yml
-    │   └── NN-*.yml (Ordered modular playbooks)
-    └── roles/
-        └── [role_name]/ (Modular component roles)
+linux-server-baseline/
+├── LICENSE
+├── README.md
+├── ansible.cfg
+├── inventory/
+│   ├── host_vars/
+│   │   ├── server-01.yml
+│   │   └── server-02.yml
+│   └── inventory.ini
+├── playbooks/
+│   ├── baseline.yml
+│   └── NN-*.yml (Ordered modular playbooks)
+├── requirements.yml
+├── roles/
+    └── [role_name]/ (Modular component roles)
+
 ```
 
 ## Requirements
 
 ### Target Server
 
-* Linux (Debian/Ubuntu or Red Hat/Rocky Linux family)
+* Linux (**Debian/Ubuntu-first**, with several Red Hat-aware roles)
 * Python 3
 * SSH access with a user capable of performing initial setup and `sudo` privileges
 
@@ -36,10 +40,9 @@ server-ops/
 * Ansible installed
 * SSH client configured with access to target servers
 
-
 ## Configure the Inventory
 
-The repository includes an example inventory file at `ansible/inventory/inventory.ini`. Because this is a public repository, it contains placeholder values. Update it before running playbooks.
+The repository includes an example inventory file at `inventory/inventory.ini`. Because this is a public repository, it contains placeholder values. Update it before running playbooks.
 
 ```ini
 [servers]
@@ -51,16 +54,17 @@ server-01
 
 [database]
 server-02
+
 ```
 
 ### Verify the Inventory
 
-Navigate into the `ansible/` directory and test connectivity:
+Test inventory graph generation and connectivity directly from the repository root:
 
 ```bash
-cd ansible
 ansible-inventory -i inventory/inventory.ini --graph
 ansible servers -m ping
+
 ```
 
 ## Applying the Baseline
@@ -68,15 +72,15 @@ ansible servers -m ping
 Always run a dry-run check before applying changes to production infrastructure:
 
 ```bash
-cd ansible
-ansible-playbook playbooks/baseline.yml --check
-ansible-playbook playbooks/baseline.yml --diff
+ansible-playbook playbooks/baseline.yml --check --diff
+
 ```
 
 To apply the complete server baseline in the proper sequence:
 
 ```bash
 ansible-playbook playbooks/baseline.yml
+
 ```
 
 ## Baseline Architecture & Execution Flow
@@ -96,6 +100,7 @@ Each playbook can also be run independently for testing or focused maintenance:
 
 ```bash
 ansible-playbook playbooks/04-ssh-hardening.yml
+
 ```
 
 ## Bootstrap User Lifecycle (`99-remove-default-user.yml`)
@@ -111,8 +116,10 @@ Cloud-provisioned servers typically come with a default provider account (e.g., 
 3. Open a separate terminal and verify you can SSH into the server using your `sysadmin` key.
 4. Update your inventory file with the new user credentials.
 5. Execute the clean-up playbook manually:
+
 ```bash
 ansible-playbook playbooks/99-remove-default-user.yml
+
 ```
 
 ## Core Security Controls
@@ -126,7 +133,6 @@ ansible-playbook playbooks/99-remove-default-user.yml
 ## Security & Secrets Management
 
 This repository is public and **must not** contain real production credentials, private SSH keys, or secrets. Utilize external tools like **Ansible Vault** or secure environment secret injection for sensitive variables.
-
 
 ## Current Limitations
 
