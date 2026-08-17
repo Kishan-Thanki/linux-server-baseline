@@ -1,8 +1,15 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This firewall role supports Ubuntu only."
+
 - name: Ensure firewalld package is installed
-  ansible.builtin.package:
+  ansible.builtin.apt:
     name: firewalld
     state: present
+    update_cache: true
 
 - name: Ensure firewalld service is enabled and started
   ansible.builtin.service:
@@ -27,3 +34,56 @@
     state: disabled
     zone: "{{ firewall_default_zone }}"
   loop: "{{ firewall_blocked_services }}"
+
+- name: Check for legacy persistent iptables rules
+  ansible.builtin.stat:
+    path: /etc/iptables/rules.v4
+  register: firewall_legacy_rules_v4
+
+- name: Stop legacy netfilter-persistent service
+  ansible.builtin.service:
+    name: netfilter-persistent
+    state: stopped
+    enabled: false
+  when: firewall_legacy_rules_v4.stat.exists
+  failed_when: false
+
+- name: Flush legacy IPv4 INPUT chain
+  ansible.builtin.iptables:
+    chain: INPUT
+    table: filter
+    flush: true
+  when: firewall_legacy_rules_v4.stat.exists
+
+- name: Flush legacy IPv4 FORWARD chain
+  ansible.builtin.iptables:
+    chain: FORWARD
+    table: filter
+    flush: true
+  when: firewall_legacy_rules_v4.stat.exists
+
+- name: Remove iptables-persistent package
+  ansible.builtin.apt:
+    name: iptables-persistent
+    state: absent
+    purge: true
+  when: firewall_legacy_rules_v4.stat.exists
+
+- name: Remove netfilter-persistent package
+  ansible.builtin.apt:
+    name: netfilter-persistent
+    state: absent
+    purge: true
+  when: firewall_legacy_rules_v4.stat.exists
+
+- name: Remove legacy IPv4 iptables rules file
+  ansible.builtin.file:
+    path: /etc/iptables/rules.v4
+    state: absent
+  when: firewall_legacy_rules_v4.stat.exists
+
+- name: Remove legacy IPv6 iptables rules file
+  ansible.builtin.file:
+    path: /etc/iptables/rules.v6
+    state: absent
+  when: firewall_legacy_rules_v4.stat.exists

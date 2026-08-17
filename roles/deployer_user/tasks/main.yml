@@ -1,0 +1,32 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This deployer_user role supports Ubuntu only."
+
+- name: Validate deployer SSH public key configuration
+  ansible.builtin.assert:
+    that:
+      - deployer_user_ssh_public_key | length > 0
+      - lookup( 'ansible.builtin.file', deployer_user_ssh_public_key, errors='ignore' ) | trim | length > 0
+    fail_msg: >-
+      deployer_user_ssh_public_key must point to a readable SSH public key
+      file on the Ansible controller.
+
+- name: Create application deployer user
+  ansible.builtin.user:
+    name: "{{ deployer_user_name }}"
+    shell: "{{ deployer_user_shell }}"
+    create_home: true
+    password_lock: true
+    groups: []
+    append: false
+    state: present
+
+- name: Add SSH authorized key for deployer user
+  ansible.posix.authorized_key:
+    user: "{{ deployer_user_name }}"
+    key: "{{ lookup('ansible.builtin.file', deployer_user_ssh_public_key) }}"
+    state: present
+    manage_dir: true

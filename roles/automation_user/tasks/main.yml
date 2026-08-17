@@ -1,10 +1,16 @@
 ---
-- name: Ensure sudo/wheel group exists for automation user
+- name: Validate required automation user SSH key configuration
+  ansible.builtin.assert:
+    that:
+      - automation_user_ssh_public_key | length > 0
+    fail_msg: "automation_user_ssh_public_key must point to the automation public key file."
+
+- name: Ensure sudo group exists
   ansible.builtin.group:
     name: "{{ automation_user_sudo_group }}"
     state: present
 
-- name: Create server automation user
+- name: Create or update automation user
   ansible.builtin.user:
     name: "{{ automation_user_name }}"
     shell: "{{ automation_user_shell }}"
@@ -12,13 +18,14 @@
     groups:
       - "{{ automation_user_sudo_group }}"
     append: true
+    password: "!"
     password_lock: true
     state: present
 
 - name: Add dedicated SSH authorized key for automation user
   ansible.posix.authorized_key:
     user: "{{ automation_user_name }}"
-    key: "{{ lookup('file', automation_user_ssh_public_key) }}"
+    key: "{{ lookup('ansible.builtin.file', automation_user_ssh_public_key) }}"
     state: present
 
 - name: Configure passwordless sudo for automation user

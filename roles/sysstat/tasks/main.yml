@@ -1,10 +1,17 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This sysstat role supports Ubuntu only."
+
 - name: Ensure sysstat package is installed
-  ansible.builtin.package:
+  ansible.builtin.apt:
     name: sysstat
     state: present
+    update_cache: true
 
-- name: Enable sysstat data collection on Debian family
+- name: Enable sysstat data collection
   ansible.builtin.lineinfile:
     path: /etc/default/sysstat
     regexp: "^ENABLED="
@@ -13,33 +20,12 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
 
-- name: Configure sysstat history retention on Debian family
+- name: Configure sysstat history retention
   ansible.builtin.lineinfile:
     path: /etc/sysstat/sysstat
     regexp: "^HISTORY="
     line: "HISTORY={{ sysstat_history_days }}"
-  when: ansible_facts['os_family'] == 'Debian'
-
-- name: Configure sysstat history retention on Red Hat family
-  ansible.builtin.lineinfile:
-    path: /etc/sysconfig/sysstat
-    regexp: "^HISTORY="
-    line: "HISTORY={{ sysstat_history_days }}"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Enable sysstat collection timer on Red Hat family
-  ansible.builtin.systemd:
-    name: sysstat-collect.timer
-    state: started
-    enabled: true
-    daemon_reload: true
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Enable sysstat summary timer on Red Hat family
-  ansible.builtin.systemd:
-    name: sysstat-summary.timer
-    state: started
-    enabled: true
-  when: ansible_facts['os_family'] == 'RedHat'
+    owner: root
+    group: root
+    mode: "0644"

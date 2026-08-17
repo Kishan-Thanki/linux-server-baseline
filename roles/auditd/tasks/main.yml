@@ -1,15 +1,15 @@
 ---
-- name: Ensure auditd package is installed on Debian family
-  ansible.builtin.package:
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This auditd role supports Ubuntu only."
+
+- name: Ensure auditd package is installed
+  ansible.builtin.apt:
     name: auditd
     state: present
-  when: ansible_facts['os_family'] == 'Debian'
-
-- name: Ensure audit package is installed on Red Hat family
-  ansible.builtin.package:
-    name: audit
-    state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+    update_cache: true
 
 - name: Ensure audit rules directory exists
   ansible.builtin.file:
@@ -26,7 +26,13 @@
     owner: root
     group: root
     mode: "0640"
-  notify: Validate and load audit rules
+  notify: Load audit rules
+
+- name: Validate audit rules
+  ansible.builtin.command:
+    cmd: augenrules --check
+  changed_when: false
+  check_mode: false
 
 - name: Ensure auditd service is enabled and started
   ansible.builtin.service:

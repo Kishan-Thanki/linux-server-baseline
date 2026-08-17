@@ -1,6 +1,7 @@
 ---
 - name: Update system packages
   hosts: servers
+  serial: 1
   become: true
   roles:
     - system_update

@@ -1,4 +1,10 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This sysctl role supports Ubuntu only."
+
 - name: Ensure sysctl.d directory exists
   ansible.builtin.file:
     path: /etc/sysctl.d

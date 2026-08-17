@@ -1,0 +1,14 @@
+---
+caddy_package_name: caddy
+caddy_service_name: caddy
+
+caddy_config_dir: /etc/caddy
+caddy_config_file: /etc/caddy/Caddyfile
+caddy_dropin_dir: /etc/caddy/Caddyfile.d
+
+caddy_watch_service_name: caddy-watch
+caddy_reload_service_name: caddy-reload
+
+caddy_inotify_package: inotify-tools
+
+caddy_reload_debounce_seconds: 2

@@ -1,4 +1,2 @@
 ---
 ntp_timezone: "Etc/UTC"
-
-ntp_pool: "pool.ntp.org"

@@ -1,11 +1,17 @@
 ---
-- name: Ensure unattended-upgrades is installed on Debian family
-  ansible.builtin.package:
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This auto_updates role supports Ubuntu only."
+
+- name: Ensure unattended-upgrades is installed
+  ansible.builtin.apt:
     name:
       - unattended-upgrades
       - apt-listchanges
     state: present
-  when: ansible_facts['os_family'] == 'Debian'
+    update_cache: true
 
 - name: Configure APT automatic updates
   ansible.builtin.template:
@@ -14,7 +20,6 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Configure unattended-upgrades
   ansible.builtin.template:
@@ -23,36 +28,10 @@
     owner: root
     group: root
     mode: "0644"
-  when: ansible_facts['os_family'] == 'Debian'
 
 - name: Validate unattended-upgrades configuration
   ansible.builtin.command:
     cmd: unattended-upgrade --dry-run
   changed_when: false
   check_mode: false
-  when:
-    - ansible_facts['os_family'] == 'Debian'
-    - auto_updates_enabled
-
-- name: Ensure dnf-automatic is installed on Red Hat family
-  ansible.builtin.package:
-    name: dnf-automatic
-    state: present
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Configure dnf-automatic
-  ansible.builtin.template:
-    src: automatic.conf.j2
-    dest: /etc/dnf/automatic.conf
-    owner: root
-    group: root
-    mode: "0644"
-  when: ansible_facts['os_family'] == 'RedHat'
-
-- name: Ensure dnf-automatic install timer is configured
-  ansible.builtin.systemd:
-    name: dnf-automatic-install.timer
-    state: "{{ 'started' if auto_updates_enabled else 'stopped' }}"
-    enabled: "{{ auto_updates_enabled }}"
-    daemon_reload: true
-  when: ansible_facts['os_family'] == 'RedHat'
+  when: auto_updates_enabled

@@ -1,18 +1,17 @@
 ---
-- name: Ensure Fail2ban is installed on Debian family
-  ansible.builtin.package:
-    name: fail2ban
-    state: present
-  when: ansible_facts['os_family'] == 'Debian'
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == "Ubuntu"
+    fail_msg: "This Fail2ban role supports Ubuntu only."
 
-- name: Ensure Fail2ban and firewalld integration are installed on Red Hat family
-  ansible.builtin.package:
+- name: Ensure Fail2ban packages are installed
+  ansible.builtin.apt:
     name:
       - fail2ban
-      - fail2ban-firewalld
-      - fail2ban-systemd
+      - python3-systemd
     state: present
-  when: ansible_facts['os_family'] == 'RedHat'
+    update_cache: true
 
 - name: Deploy Fail2ban jail configuration
   ansible.builtin.template:
