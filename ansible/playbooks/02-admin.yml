@@ -1,7 +1,0 @@
----
-- name: Configure permanent administrator
-  hosts: servers
-  become: true
-
-  roles:
-    - admin

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+cd "$ROOT_DIR"
+
+echo "==> Running pre-push validation"
+
+pre-commit run --all-files
+
+./scripts/validate-ansible.sh
+
+echo "==> Pre-push validation passed"

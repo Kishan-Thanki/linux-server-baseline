@@ -1,0 +1,6 @@
+---
+- name: Configure Server Swap
+  hosts: servers
+  become: true
+  roles:
+    - swap

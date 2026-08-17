@@ -1,7 +1,0 @@
----
-- name: Configure Ansible automation account
-  hosts: servers
-  become: true
-
-  roles:
-    - ansible
