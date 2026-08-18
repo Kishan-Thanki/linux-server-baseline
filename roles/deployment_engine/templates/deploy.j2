@@ -1,0 +1,1071 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# ============================================================================
+# SECTION: Deployment Engine Configuration
+# ============================================================================
+
+DEPLOYMENT_ENGINE_VERSION="{{ deployment_engine_version }}"
+
+DEPLOYMENT_BASE="{{ deployment_engine_base }}"
+LOCK_NAME="{{ deployment_engine_lock_name }}"
+LOG_NAME="{{ deployment_engine_log_name }}"
+TEMP_ROOT="{{ deployment_engine_temp_root }}"
+
+MAX_ARTIFACT_SIZE_MB="{{ deployment_engine_max_artifact_size_mb }}"
+MAX_EXTRACTED_SIZE_MB="{{ deployment_engine_max_extracted_size_mb }}"
+MAX_FILE_COUNT="{{ deployment_engine_max_file_count }}"
+
+DEFAULT_KEEP_RELEASES="{{ deployment_engine_keep_releases }}"
+
+DOWNLOAD_TIMEOUT_SECONDS="{{ deployment_engine_download_timeout_seconds }}"
+DOWNLOAD_CONNECT_TIMEOUT_SECONDS="{{ deployment_engine_download_connect_timeout_seconds }}"
+
+{% raw %}
+
+# ============================================================================
+# SECTION: Command State
+# ============================================================================
+
+COMMAND="deploy"
+
+NAME=""
+VERSION=""
+ARTIFACT_URL=""
+EXPECTED_SHA256=""
+
+KEEP_RELEASES="$DEFAULT_KEEP_RELEASES"
+
+APP_ROOT=""
+RELEASES_ROOT=""
+CURRENT_LINK=""
+PREVIOUS_LINK=""
+LOCK_DIR=""
+LOG_FILE=""
+
+TMP_ROOT_DIR=""
+ARTIFACT_FILE=""
+HTTP_STATUS_FILE=""
+STAGING_DIR=""
+RELEASE_DIR=""
+
+LOCK_ACQUIRED=0
+
+# ============================================================================
+# SECTION: Usage
+# ============================================================================
+
+usage() {
+    cat <<'EOF'
+Usage:
+
+  deploy \
+    --name <deployment-name> \
+    --version <release-version> \
+    --artifact-url <https-artifact-url> \
+    --sha256 <sha256>
+
+  deploy validate \
+    --name <deployment-name> \
+    --version <release-version> \
+    --artifact-url <https-artifact-url> \
+    --sha256 <sha256>
+
+  deploy status \
+    --name <deployment-name>
+
+  deploy releases \
+    --name <deployment-name>
+
+  deploy rollback \
+    --name <deployment-name>
+
+  deploy version
+
+Notes:
+
+  --artifact-url must use HTTPS.
+
+  The artifact may be publicly accessible or may use a
+  pre-signed/time-limited HTTPS URL.
+
+Optional:
+
+  --keep-releases <count>
+  -h, --help
+EOF
+}
+
+# ============================================================================
+# SECTION: Logging / Errors
+# ============================================================================
+
+timestamp() {
+    date -u '+%Y-%m-%dT%H:%M:%SZ'
+}
+
+log() {
+    local message="$1"
+
+    printf '[%s] %s\n' "$(timestamp)" "$message"
+
+    if [[ -n "${LOG_FILE:-}" ]]; then
+        local log_directory
+
+        log_directory="$(dirname -- "$LOG_FILE")"
+
+        if [[ -d "$log_directory" ]]; then
+            printf '[%s] %s\n' "$(timestamp)" "$message" \
+                >> "$LOG_FILE" 2>/dev/null || true
+        fi
+    fi
+}
+
+fail() {
+    local message="$1"
+
+    printf 'ERROR: %s\n' "$message" >&2
+    log "ERROR: $message"
+
+    exit 1
+}
+
+# ============================================================================
+# SECTION: Temporary Workspace
+# ============================================================================
+
+prepare_temp_root() {
+    if [[ -n "$TMP_ROOT_DIR" ]]; then
+        return 0
+    fi
+
+    TMP_ROOT_DIR="$(
+        mktemp -d \
+            "${TEMP_ROOT}/deploy-${NAME}-XXXXXX"
+    )"
+
+    chmod 0700 "$TMP_ROOT_DIR"
+}
+
+# ============================================================================
+# SECTION: Cleanup
+# ============================================================================
+
+cleanup() {
+    local exit_code=$?
+
+    set +e
+
+    if [[ -n "${STAGING_DIR:-}" &&
+          -d "${STAGING_DIR:-}" ]]; then
+        rm -rf -- "$STAGING_DIR"
+    fi
+
+    if [[ -n "${TMP_ROOT_DIR:-}" &&
+          -d "${TMP_ROOT_DIR:-}" ]]; then
+        rm -rf -- "$TMP_ROOT_DIR"
+    fi
+
+    if [[ "$LOCK_ACQUIRED" -eq 1 &&
+          -n "${LOCK_DIR:-}" ]]; then
+        rmdir -- "$LOCK_DIR" 2>/dev/null || true
+    fi
+
+    exit "$exit_code"
+}
+
+trap cleanup EXIT
+
+# ============================================================================
+# SECTION: Generic Input Validation
+# ============================================================================
+
+validate_identifier() {
+    local value="$1"
+    local field="$2"
+
+    [[ -n "$value" ]] ||
+        fail "$field cannot be empty."
+
+    if [[ ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+        fail "Invalid $field: $value"
+    fi
+}
+
+validate_sha256() {
+    [[ "$EXPECTED_SHA256" =~ ^[[:xdigit:]]{64}$ ]] ||
+        fail \
+            "--sha256 must contain exactly 64 hexadecimal characters."
+
+    EXPECTED_SHA256="${EXPECTED_SHA256,,}"
+}
+
+validate_keep_releases() {
+    [[ "$KEEP_RELEASES" =~ ^[0-9]+$ ]] ||
+        fail \
+            "--keep-releases must be a non-negative integer."
+
+    (( KEEP_RELEASES >= 2 )) ||
+        fail \
+            "--keep-releases must be at least 2."
+}
+
+validate_artifact_url() {
+    python3 - "$ARTIFACT_URL" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+url = sys.argv[1]
+parsed = urlparse(url)
+
+if parsed.scheme != "https":
+    print(
+        "ERROR: --artifact-url must use HTTPS.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+if not parsed.hostname:
+    print(
+        "ERROR: --artifact-url must contain a valid host.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+if parsed.username is not None or parsed.password is not None:
+    print(
+        "ERROR: --artifact-url must not contain embedded credentials.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+PY
+}
+
+validate_inputs() {
+    validate_identifier "$NAME" "deployment name"
+    validate_identifier "$VERSION" "release version"
+    validate_sha256
+    validate_keep_releases
+    validate_artifact_url
+}
+
+# ============================================================================
+# SECTION: Deployment Paths
+# ============================================================================
+
+prepare_paths() {
+    APP_ROOT="${DEPLOYMENT_BASE}/${NAME}"
+    RELEASES_ROOT="${APP_ROOT}/releases"
+    CURRENT_LINK="${APP_ROOT}/current"
+    PREVIOUS_LINK="${APP_ROOT}/previous"
+    LOCK_DIR="${APP_ROOT}/${LOCK_NAME}"
+    LOG_FILE="${APP_ROOT}/${LOG_NAME}"
+}
+
+ensure_application_root() {
+    mkdir -p "$APP_ROOT"
+    mkdir -p "$RELEASES_ROOT"
+
+    touch "$LOG_FILE"
+    chmod 0640 "$LOG_FILE"
+}
+
+# ============================================================================
+# SECTION: Deployment Lock
+# ============================================================================
+
+acquire_lock() {
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        fail "Deployment already running for: $NAME"
+    fi
+
+    LOCK_ACQUIRED=1
+}
+
+# ============================================================================
+# SECTION: Current / Previous Release
+# ============================================================================
+
+resolve_current() {
+    if [[ -L "$CURRENT_LINK" ]]; then
+        readlink -f "$CURRENT_LINK"
+    else
+        printf ''
+    fi
+}
+
+resolve_previous() {
+    if [[ -L "$PREVIOUS_LINK" ]]; then
+        readlink -f "$PREVIOUS_LINK"
+    else
+        printf ''
+    fi
+}
+
+validate_release_target() {
+    local target="$1"
+    local description="$2"
+
+    [[ -n "$target" ]] ||
+        fail "$description does not exist."
+
+    [[ "$target" == "$RELEASES_ROOT/"* ]] ||
+        fail \
+            "$description points outside the release directory: $target"
+
+    [[ -d "$target" ]] ||
+        fail \
+            "$description directory does not exist: $target"
+}
+
+validate_current_previous_links() {
+    local current
+    local previous
+
+    current="$(resolve_current)"
+    previous="$(resolve_previous)"
+
+    if [[ -n "$current" ]]; then
+        validate_release_target \
+            "$current" \
+            "Current release"
+    fi
+
+    if [[ -n "$previous" ]]; then
+        validate_release_target \
+            "$previous" \
+            "Previous release"
+    fi
+}
+
+validate_existing_release() {
+    RELEASE_DIR="${RELEASES_ROOT}/${VERSION}"
+
+    if [[ -e "$RELEASE_DIR" ||
+          -L "$RELEASE_DIR" ]]; then
+        fail \
+            "Release already exists: $RELEASE_DIR"
+    fi
+}
+
+# ============================================================================
+# SECTION: Artifact Download
+# ============================================================================
+
+download_artifact() {
+    prepare_temp_root
+
+    ARTIFACT_FILE="${TMP_ROOT_DIR}/artifact.tar.gz"
+    HTTP_STATUS_FILE="${TMP_ROOT_DIR}/http-status"
+
+    log "Downloading artifact."
+
+    local -a curl_args
+
+    curl_args=(
+        --disable
+        --fail
+        --silent
+        --show-error
+        --location
+        --max-redirs 5
+        --proto '=https'
+        --proto-redir '=https'
+        --connect-timeout "$DOWNLOAD_CONNECT_TIMEOUT_SECONDS"
+        --max-time "$DOWNLOAD_TIMEOUT_SECONDS"
+        --max-filesize "$((MAX_ARTIFACT_SIZE_MB * 1024 * 1024))"
+        --output "$ARTIFACT_FILE"
+        --write-out '%{http_code}'
+        --url "$ARTIFACT_URL"
+    )
+
+    local http_status
+
+    http_status="$(
+        curl "${curl_args[@]}"
+    )"
+
+    printf '%s\n' "$http_status" > "$HTTP_STATUS_FILE"
+
+    [[ "$http_status" == "200" ]] ||
+        fail \
+            "Artifact download returned HTTP status: $http_status"
+
+    [[ -s "$ARTIFACT_FILE" ]] ||
+        fail \
+            "Downloaded artifact is empty."
+
+    log "Artifact downloaded."
+}
+
+# ============================================================================
+# SECTION: Artifact Integrity
+# ============================================================================
+
+verify_artifact() {
+    local actual_sha256
+
+    actual_sha256="$(
+        sha256sum "$ARTIFACT_FILE" |
+            awk '{print $1}'
+    )"
+
+    if [[ "$actual_sha256" != "$EXPECTED_SHA256" ]]; then
+        fail \
+            "SHA-256 checksum mismatch. " \
+            "Expected ${EXPECTED_SHA256}, got ${actual_sha256}."
+    fi
+
+    log "Artifact SHA-256 verified."
+}
+
+# ============================================================================
+# SECTION: Archive Validation
+# ============================================================================
+
+validate_archive() {
+    python3 \
+        - "$ARTIFACT_FILE" \
+        "$MAX_EXTRACTED_SIZE_MB" \
+        "$MAX_FILE_COUNT" \
+        <<'PY'
+import sys
+import tarfile
+from pathlib import PurePosixPath
+
+artifact = sys.argv[1]
+max_extracted_mb = int(sys.argv[2])
+max_file_count = int(sys.argv[3])
+
+max_extracted_bytes = (
+    max_extracted_mb * 1024 * 1024
+)
+
+try:
+    archive = tarfile.open(
+        artifact,
+        mode="r:gz",
+    )
+except Exception as exc:
+    print(
+        f"ERROR: Invalid .tar.gz archive: {exc}",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+try:
+    members = archive.getmembers()
+
+    if not members:
+        print(
+            "ERROR: Artifact archive is empty.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    if len(members) > max_file_count:
+        print(
+            "ERROR: Archive contains too many entries: "
+            f"{len(members)} > {max_file_count}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    total_size = 0
+
+    for member in members:
+        name = member.name
+
+        if not name:
+            print(
+                "ERROR: Archive contains an empty member name.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        path = PurePosixPath(name)
+
+        if path.is_absolute():
+            print(
+                f"ERROR: Archive contains an absolute path: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if ".." in path.parts:
+            print(
+                f"ERROR: Archive contains parent traversal: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if member.issym():
+            print(
+                f"ERROR: Archive contains a symbolic link: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if member.islnk():
+            print(
+                f"ERROR: Archive contains a hard link: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if (
+            member.ischr()
+            or member.isblk()
+            or member.isfifo()
+        ):
+            print(
+                f"ERROR: Archive contains a special file: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if member.isfile():
+            total_size += member.size
+
+            if total_size > max_extracted_bytes:
+                print(
+                    "ERROR: Maximum extracted size exceeded.",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+
+        elif not member.isdir():
+            print(
+                f"ERROR: Unsupported archive entry type: {name}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    print("Archive validation passed.")
+
+finally:
+    archive.close()
+PY
+
+    log "Archive validation passed."
+}
+
+# ============================================================================
+# SECTION: Release Staging
+# ============================================================================
+
+stage_release() {
+    STAGING_DIR="${RELEASES_ROOT}/.${VERSION}.staging-$$"
+
+    if [[ -e "$STAGING_DIR" ]]; then
+        fail \
+            "Staging directory already exists: $STAGING_DIR"
+    fi
+
+    mkdir "$STAGING_DIR"
+
+    log "Extracting artifact."
+
+    python3 \
+        - "$ARTIFACT_FILE" \
+        "$STAGING_DIR" \
+        <<'PY'
+import sys
+import tarfile
+
+artifact = sys.argv[1]
+destination = sys.argv[2]
+
+with tarfile.open(
+    artifact,
+    mode="r:gz",
+) as archive:
+    for member in archive.getmembers():
+        archive.extract(
+            member,
+            destination,
+        )
+PY
+
+    if ! find "$STAGING_DIR" \
+        -mindepth 1 \
+        -print \
+        -quit |
+        grep -q .; then
+
+        fail "Extracted release is empty."
+    fi
+
+    chmod -R u+rwX,go+rX "$STAGING_DIR"
+
+    mv -- \
+        "$STAGING_DIR" \
+        "$RELEASE_DIR"
+
+    STAGING_DIR=""
+
+    log "Release staged: $VERSION"
+}
+
+# ============================================================================
+# SECTION: Release Activation
+# ============================================================================
+
+activate_release() {
+    validate_current_previous_links
+
+    local current_target
+    current_target="$(resolve_current)"
+
+    local temporary_current
+    temporary_current="${APP_ROOT}/.current.new"
+
+    rm -f -- "$temporary_current"
+
+    ln -s \
+        "releases/${VERSION}" \
+        "$temporary_current"
+
+    mv -Tf \
+        "$temporary_current" \
+        "$CURRENT_LINK"
+
+    if [[ -n "$current_target" ]]; then
+        local current_relative
+        current_relative="${current_target#${APP_ROOT}/}"
+
+        local temporary_previous
+        temporary_previous="${APP_ROOT}/.previous.new"
+
+        rm -f -- "$temporary_previous"
+
+        ln -s \
+            "$current_relative" \
+            "$temporary_previous"
+
+        mv -Tf \
+            "$temporary_previous" \
+            "$PREVIOUS_LINK"
+    else
+        rm -f -- "$PREVIOUS_LINK"
+    fi
+
+    log "Release activated: $VERSION"
+}
+
+# ============================================================================
+# SECTION: Release Retention
+# ============================================================================
+
+prune_releases() {
+    validate_current_previous_links
+
+    local current
+    current="$(resolve_current)"
+
+    local previous
+    previous="$(resolve_previous)"
+
+    mapfile -t releases < <(
+        find "$RELEASES_ROOT" \
+            -mindepth 1 \
+            -maxdepth 1 \
+            -type d \
+            ! -name '.*' \
+            -printf '%T@ %p\n' |
+        sort -n |
+        cut -d' ' -f2-
+    )
+
+    local total="${#releases[@]}"
+
+    if (( total <= KEEP_RELEASES )); then
+        return 0
+    fi
+
+    local remove_target
+    remove_target=$((total - KEEP_RELEASES))
+
+    local removed=0
+
+    for release in "${releases[@]}"; do
+        (( removed < remove_target )) || break
+
+        if [[ "$release" == "$current" ||
+              "$release" == "$previous" ]]; then
+            continue
+        fi
+
+        rm -rf -- "$release"
+
+        removed=$((removed + 1))
+
+        log "Pruned release: $(basename "$release")"
+    done
+}
+
+# ============================================================================
+# SECTION: Status / Release Listing
+# ============================================================================
+
+deployment_status() {
+    prepare_paths
+
+    validate_current_previous_links
+
+    local current
+    current="$(resolve_current)"
+
+    local previous
+    previous="$(resolve_previous)"
+
+    local release_count="0"
+
+    if [[ -d "$RELEASES_ROOT" ]]; then
+        release_count="$(
+            find "$RELEASES_ROOT" \
+                -mindepth 1 \
+                -maxdepth 1 \
+                -type d \
+                ! -name '.*' \
+                -printf '.' |
+            wc -c
+        )"
+    fi
+
+    printf 'Deployment       : %s\n' "$NAME"
+    printf 'Engine Version   : %s\n' "$DEPLOYMENT_ENGINE_VERSION"
+    printf 'Current          : %s\n' "${current:-none}"
+    printf 'Previous         : %s\n' "${previous:-none}"
+    printf 'Releases         : %s\n' "$release_count"
+
+    if [[ -d "$LOCK_DIR" ]]; then
+        printf 'Lock             : active\n'
+    else
+        printf 'Lock             : inactive\n'
+    fi
+}
+
+list_releases() {
+    prepare_paths
+
+    if [[ ! -d "$RELEASES_ROOT" ]]; then
+        printf 'No releases.\n'
+        return 0
+    fi
+
+    validate_current_previous_links
+
+    local current
+    current="$(resolve_current)"
+
+    mapfile -t releases < <(
+        find "$RELEASES_ROOT" \
+            -mindepth 1 \
+            -maxdepth 1 \
+            -type d \
+            ! -name '.*' \
+            -printf '%T@ %p\n' |
+        sort -n |
+        cut -d' ' -f2-
+    )
+
+    if (( ${#releases[@]} == 0 )); then
+        printf 'No releases.\n'
+        return 0
+    fi
+
+    if [[ -n "$current" ]]; then
+        local current_version
+        current_version="$(basename "$current")"
+
+        printf '%s  <- current\n' "$current_version"
+
+        local release
+        for release in "${releases[@]}"; do
+            [[ "$release" == "$current" ]] && continue
+            printf '%s\n' "$(basename "$release")"
+        done
+    else
+        local release
+        for release in "${releases[@]}"; do
+            printf '%s\n' "$(basename "$release")"
+        done
+    fi
+}
+
+# ============================================================================
+# SECTION: Commands
+# ============================================================================
+
+validate_command() {
+    validate_inputs
+    prepare_paths
+    validate_existing_release
+    download_artifact
+    verify_artifact
+    validate_archive
+
+    log "Validation successful."
+}
+
+deploy_command() {
+    validate_inputs
+    prepare_paths
+    ensure_application_root
+    acquire_lock
+
+    validate_existing_release
+    download_artifact
+    verify_artifact
+    validate_archive
+    stage_release
+    activate_release
+    prune_releases
+
+    log "Deployment completed successfully."
+
+    deployment_status
+}
+
+rollback_command() {
+    prepare_paths
+
+    [[ -d "$APP_ROOT" ]] ||
+        fail \
+            "Deployment does not exist: $NAME"
+
+    acquire_lock
+
+    validate_current_previous_links
+
+    local current
+    current="$(resolve_current)"
+
+    local previous
+    previous="$(resolve_previous)"
+
+    [[ -n "$current" ]] ||
+        fail "No current release exists."
+
+    [[ -n "$previous" ]] ||
+        fail "No previous release exists."
+
+    validate_release_target \
+        "$previous" \
+        "Previous release"
+
+    local current_relative
+    current_relative="${current#${APP_ROOT}/}"
+
+    local previous_relative
+    previous_relative="${previous#${APP_ROOT}/}"
+
+    local temporary_current
+    temporary_current="${APP_ROOT}/.current.new"
+
+    local temporary_previous
+    temporary_previous="${APP_ROOT}/.previous.new"
+
+    rm -f \
+        "$temporary_current" \
+        "$temporary_previous"
+
+    ln -s \
+        "$previous_relative" \
+        "$temporary_current"
+
+    mv -Tf \
+        "$temporary_current" \
+        "$CURRENT_LINK"
+
+    ln -s \
+        "$current_relative" \
+        "$temporary_previous"
+
+    mv -Tf \
+        "$temporary_previous" \
+        "$PREVIOUS_LINK"
+
+    log "Rollback completed."
+
+    deployment_status
+}
+
+# ============================================================================
+# SECTION: Argument Parsing
+# ============================================================================
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name)
+                [[ $# -ge 2 ]] ||
+                    fail "--name requires a value."
+
+                NAME="$2"
+                shift 2
+                ;;
+
+            --version)
+                [[ $# -ge 2 ]] ||
+                    fail "--version requires a value."
+
+                VERSION="$2"
+                shift 2
+                ;;
+
+            --artifact-url)
+                [[ $# -ge 2 ]] ||
+                    fail "--artifact-url requires a value."
+
+                ARTIFACT_URL="$2"
+                shift 2
+                ;;
+
+            --sha256)
+                [[ $# -ge 2 ]] ||
+                    fail "--sha256 requires a value."
+
+                EXPECTED_SHA256="$2"
+                shift 2
+                ;;
+
+            --keep-releases)
+                [[ $# -ge 2 ]] ||
+                    fail "--keep-releases requires a value."
+
+                KEEP_RELEASES="$2"
+                shift 2
+                ;;
+
+            *)
+                fail "Unknown argument: $1"
+                ;;
+        esac
+    done
+}
+
+# ============================================================================
+# SECTION: Main
+# ============================================================================
+
+main() {
+    if [[ $# -eq 1 &&
+          ( "$1" == "-h" || "$1" == "--help" ) ]]; then
+        usage
+        exit 0
+    fi
+
+    if [[ $# -eq 0 ]]; then
+        COMMAND="deploy"
+
+    elif [[ "$1" == "validate" ||
+            "$1" == "status" ||
+            "$1" == "releases" ||
+            "$1" == "rollback" ||
+            "$1" == "version" ]]; then
+
+        COMMAND="$1"
+        shift
+
+    else
+        COMMAND="deploy"
+    fi
+
+    case "$COMMAND" in
+        deploy)
+            parse_args "$@"
+
+            [[ -n "$NAME" ]] ||
+                fail "--name is required."
+
+            [[ -n "$VERSION" ]] ||
+                fail "--version is required."
+
+            [[ -n "$ARTIFACT_URL" ]] ||
+                fail "--artifact-url is required."
+
+            [[ -n "$EXPECTED_SHA256" ]] ||
+                fail "--sha256 is required."
+
+            deploy_command
+            ;;
+
+        validate)
+            parse_args "$@"
+
+            [[ -n "$NAME" ]] ||
+                fail "--name is required."
+
+            [[ -n "$VERSION" ]] ||
+                fail "--version is required."
+
+            [[ -n "$ARTIFACT_URL" ]] ||
+                fail "--artifact-url is required."
+
+            [[ -n "$EXPECTED_SHA256" ]] ||
+                fail "--sha256 is required."
+
+            validate_command
+            ;;
+
+        status)
+            parse_args "$@"
+
+            [[ -n "$NAME" ]] ||
+                fail "--name is required."
+
+            validate_identifier \
+                "$NAME" \
+                "deployment name"
+
+            deployment_status
+            ;;
+
+        releases)
+            parse_args "$@"
+
+            [[ -n "$NAME" ]] ||
+                fail "--name is required."
+
+            validate_identifier \
+                "$NAME" \
+                "deployment name"
+
+            list_releases
+            ;;
+
+        rollback)
+            parse_args "$@"
+
+            [[ -n "$NAME" ]] ||
+                fail "--name is required."
+
+            validate_identifier \
+                "$NAME" \
+                "deployment name"
+
+            rollback_command
+            ;;
+
+        version)
+            [[ $# -eq 0 ]] ||
+                fail "Unknown argument: $1"
+
+            printf \
+                'deploy %s\n' \
+                "$DEPLOYMENT_ENGINE_VERSION"
+            ;;
+
+        *)
+            usage
+            exit 5
+            ;;
+    esac
+}
+
+main "$@"
+
+{% endraw %}
