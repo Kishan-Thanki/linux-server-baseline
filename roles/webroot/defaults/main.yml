@@ -1,0 +1,4 @@
+---
+webroot_path: /var/www
+webroot_index_file: ping.html
+webroot_index_title: "Welcome"

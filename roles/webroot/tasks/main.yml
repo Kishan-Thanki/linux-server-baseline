@@ -1,0 +1,18 @@
+---
+- name: Create web root directory
+  ansible.builtin.file:
+    path: "{{ webroot_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Create default web page
+  ansible.builtin.template:
+    src: ping.html.j2
+    dest: "{{ webroot_path }}/{{ webroot_index_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
