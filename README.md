@@ -37,17 +37,15 @@ linux-server-baseline/
 │   │   ├── 13-sysstat.yml
 │   │   ├── 99-remove-default-user.yml
 │   │   └── baseline.yml
-│   ├── 02-deployment/
-│   │   ├── 01-deploy-user.yml
-│   │   ├── 02-deployment-layout.yml
-│   │   └── 03-deployment-engine.yml
-│   └── 03-services/
-│       └── caddy.yml
+│   └── 02-deployment/
+│       ├── 01-deploy-user.yml
+│       ├── 02-deployment-layout.yml
+│       └── 03-deployment-engine.yml
+|
 ├── requirements.yml
-├── roles/
-│   └── [role_name]/
-└── scripts/
-    └── validate-ansible.sh
+└── roles/
+    └── [role_name]/
+
 ```
 
 ## Requirements
@@ -155,7 +153,6 @@ The baseline is organized into ordered setup playbooks:
 ```text
 01-system-update.yml
 02-system-admin.yml
-03-automation-user.yml
 ```
 
 This phase:
@@ -232,12 +229,6 @@ Deployment-specific configuration is kept separate:
 ```bash
 ansible-playbook playbooks/02-deployment/01-deploy-user.yml
 ansible-playbook playbooks/02-deployment/02-deployment-layout.yml
-```
-
-Service-specific configuration is also separate:
-
-```bash
-ansible-playbook playbooks/03-services/caddy.yml
 ```
 
 ## Bootstrap User Lifecycle
@@ -372,7 +363,7 @@ The default timezone is:
 Etc/UTC
 ```
 
-The role intentionally leaves Ubuntu's package-managed Chrony configuration and NTP sources intact.
+NTP role: Configure the server timezone and ensure Ubuntu's Chrony service is installed, enabled, and running. Do not manage Chrony's upstream configuration or NTP sources; those remain distribution/environment controlled.
 
 ### Journald
 
@@ -518,37 +509,6 @@ playbooks/02-deployment/03-deployment-engine.yml
 
 Application-specific deployment behavior belongs in this layer rather than in the host baseline.
 
-## Caddy Service
-
-The Caddy service is maintained separately from the generic host baseline:
-
-```bash
-ansible-playbook playbooks/03-services/caddy.yml
-```
-
-The role provides:
-
-```text
-/etc/caddy/Caddyfile
-/etc/caddy/Caddyfile.d/
-```
-
-Application-specific Caddy configuration should be placed in:
-
-```text
-/etc/caddy/Caddyfile.d/*.caddyfile
-```
-
-The Caddy service includes a small inotify-based watcher so that changes to the drop-in configuration directory can automatically trigger:
-
-```text
-validation
-    ↓
-graceful Caddy reload
-```
-
-The watcher prevents invalid configuration from being applied to the running service.
-
 ## Configuration Management Principles
 
 ### Distribution-Owned Configuration
@@ -586,12 +546,6 @@ ansible-playbook playbooks/01-setup/baseline.yml --check --diff
 ansible-playbook playbooks/01-setup/baseline.yml
 
 ansible-playbook playbooks/01-setup/baseline.yml --check --diff
-```
-
-The repository also includes:
-
-```bash
-./scripts/validate-ansible.sh
 ```
 
 which performs recursive playbook syntax checks, inventory validation, and Ansible Lint.
