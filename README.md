@@ -8,6 +8,8 @@ The project is intentionally modular. Individual components can be applied indep
 
 The repository is designed to be **Ubuntu-only and cloud-provider agnostic**. It does not embed OCI-, AWS-, Azure-, GCP-, or other provider-specific implementation details.
 
+Application-specific services and deployment workflows are intentionally kept outside the core server baseline.
+
 ## Repository Structure
 
 ```text
@@ -16,6 +18,8 @@ linux-server-baseline/
 ├── README.md
 ├── ansible.cfg
 ├── inventory/
+│   ├── group_vars/
+│   │   └── all.yml
 │   ├── host_vars/
 │   │   ├── server-01.yml
 │   │   └── server-02.yml
@@ -25,51 +29,71 @@ linux-server-baseline/
 │   │   ├── 01-system-update.yml
 │   │   ├── 02-system-admin.yml
 │   │   ├── 03-automation-user.yml
-│   │   ├── 04-ssh-hardening.yml
-│   │   ├── 05-firewall.yml
-│   │   ├── 06-fail2ban.yml
-│   │   ├── 07-ntp.yml
-│   │   ├── 08-journald.yml
-│   │   ├── 09-auditd.yml
-│   │   ├── 10-sysctl.yml
-│   │   ├── 11-auto-updates.yml
-│   │   ├── 12-swap.yml
-│   │   ├── 13-sysstat.yml
-│   │   ├── 99-remove-default-user.yml
+│   │   ├── 04-deployer-user.yml
+│   │   ├── 05-ssh-hardening.yml
+│   │   ├── 06-firewall.yml
+│   │   ├── 07-fail2ban.yml
+│   │   ├── 08-ntp.yml
+│   │   ├── 09-journald.yml
+│   │   ├── 10-auditd.yml
+│   │   ├── 11-sysctl.yml
+│   │   ├── 12-auto-updates.yml
+│   │   ├── 13-swap.yml
+│   │   ├── 14-sysstat.yml
+│   │   ├── 15-webroot.yml
+│   │   ├── 98-remove-default-user.yml
 │   │   └── baseline.yml
-│   └── 02-deployment/
-│       ├── 01-deploy-user.yml
-│       ├── 02-deployment-layout.yml
-│       └── 03-deployment-engine.yml
-|
+│   └── 02-services/
+│       └── caddy.yml
 ├── requirements.yml
 └── roles/
-    └── [role_name]/
-
+    ├── auditd/
+    ├── auto_updates/
+    ├── automation_user/
+    ├── caddy/
+    ├── deployer_user/
+    ├── fail2ban/
+    ├── firewall/
+    ├── journald/
+    ├── ntp/
+    ├── remove_default_user/
+    ├── ssh_hardening/
+    ├── swap/
+    ├── sysctl/
+    ├── sysstat/
+    ├── system_admin/
+    ├── system_update/
+    └── webroot/
 ```
 
 ## Requirements
 
 ### Target Server
 
-* Ubuntu
-* Python 3
-* SSH access with an initial account capable of using `sudo`
-* Network connectivity to the configured Ubuntu package repositories
+* Ubuntu.
+* Python 3.
+* SSH access with an initial account capable of using `sudo`.
+* Network connectivity to the configured Ubuntu package repositories.
 
 The reusable roles in this repository currently target Ubuntu only.
 
 ### Control Machine
 
-* Python 3
-* Ansible
-* Ansible Lint
-* OpenSSH client
-* Access to the target servers using the configured SSH key
+* Python 3.
+* Ansible.
+* Ansible Lint.
+* OpenSSH client.
+* Access to the target servers using the configured SSH key.
 
 ## Ansible Dependencies
 
-External Ansible collections are pinned in `requirements.yml`:
+External Ansible collections are pinned in:
+
+```text
+requirements.yml
+```
+
+Current versions:
 
 ```yaml
 ---
@@ -90,9 +114,15 @@ The repository's `ansible.cfg` configures Ansible to search that local collectio
 
 ## Configure the Inventory
 
-The repository includes an example inventory at `inventory/inventory.ini`.
+The repository includes an example inventory at:
 
-Because this is a public repository, it contains placeholder values rather than production endpoints or credentials.
+```text
+inventory/inventory.ini
+```
+
+Because this is a public repository, it should contain placeholder values rather than production endpoints or credentials.
+
+Example:
 
 ```ini
 [servers]
@@ -146,13 +176,15 @@ The baseline is designed to be idempotent. After a server has converged, a subse
 
 ## Baseline Architecture
 
-The baseline is organized into ordered setup playbooks:
+The baseline is organized into ordered setup playbooks.
 
 ### Phase 1: System Update and Access Provisioning
 
 ```text
 01-system-update.yml
 02-system-admin.yml
+03-automation-user.yml
+04-deployer-user.yml
 ```
 
 This phase:
@@ -161,17 +193,18 @@ This phase:
 * Reboots when the system requires it.
 * Creates the permanent `sysadmin` account.
 * Creates the permanent `automation` account.
+* Creates the separate `deployer` account for operational release workflows.
 
 ### Phase 2: Security and Hardening
 
 ```text
-04-ssh-hardening.yml
-05-firewall.yml
-06-fail2ban.yml
-07-ntp.yml
-08-journald.yml
-09-auditd.yml
-10-sysctl.yml
+05-ssh-hardening.yml
+06-firewall.yml
+07-fail2ban.yml
+08-ntp.yml
+09-journald.yml
+10-auditd.yml
+11-sysctl.yml
 ```
 
 This phase establishes:
@@ -187,9 +220,10 @@ This phase establishes:
 ### Phase 3: Operations and Maintenance
 
 ```text
-11-auto-updates.yml
-12-swap.yml
-13-sysstat.yml
+12-auto-updates.yml
+13-swap.yml
+14-sysstat.yml
+15-webroot.yml
 ```
 
 This phase configures:
@@ -197,11 +231,12 @@ This phase configures:
 * Automatic security updates.
 * Persistent swap.
 * Local system performance accounting.
+* A minimal initial webroot.
 
 ### Bootstrap Finalization
 
 ```text
-99-remove-default-user.yml
+98-remove-default-user.yml
 ```
 
 This step removes the Ubuntu bootstrap account when it is present.
@@ -215,7 +250,7 @@ Every setup component can be applied independently.
 For example:
 
 ```bash
-ansible-playbook playbooks/01-setup/04-ssh-hardening.yml
+ansible-playbook playbooks/01-setup/05-ssh-hardening.yml
 ```
 
 Other setup components follow the same directory structure:
@@ -224,12 +259,19 @@ Other setup components follow the same directory structure:
 playbooks/01-setup/
 ```
 
-Deployment-specific configuration is kept separate:
+Services that are useful but not required for every server are kept separately under:
+
+```text
+playbooks/02-services/
+```
+
+For example:
 
 ```bash
-ansible-playbook playbooks/02-deployment/01-deploy-user.yml
-ansible-playbook playbooks/02-deployment/02-deployment-layout.yml
+ansible-playbook playbooks/02-services/caddy.yml
 ```
+
+Application-specific deployment systems are not part of the server baseline.
 
 ## Bootstrap User Lifecycle
 
@@ -244,7 +286,7 @@ Initial bootstrap account
         ↓
 Run baseline
         ↓
-sysadmin + automation created
+sysadmin + automation + deployer created
         ↓
 SSH hardening applied
         ↓
@@ -264,6 +306,7 @@ The cleanup role protects:
 ```text
 sysadmin
 automation
+deployer
 ```
 
 and refuses to remove a protected account.
@@ -284,14 +327,14 @@ using the intended permanent Ansible account.
 The cleanup playbook can be run directly when required:
 
 ```bash
-ansible-playbook playbooks/01-setup/99-remove-default-user.yml
+ansible-playbook playbooks/01-setup/98-remove-default-user.yml
 ```
 
 ## Core Security Controls
 
 ### Least Privilege
 
-Administrative, automation, and deployment responsibilities use separate accounts.
+Administrative, automation, and operational release responsibilities use separate accounts.
 
 The `deployer` account is intentionally non-privileged.
 
@@ -310,7 +353,7 @@ X11Forwarding no
 MaxAuthTries 3
 ```
 
-The configured SSH `AllowUsers` list includes the identities required by the environment, including:
+The configured SSH `AllowUsers` list includes:
 
 ```text
 sysadmin
@@ -320,7 +363,11 @@ deployer
 
 ### Firewall
 
-The host firewall uses `firewalld`.
+The host firewall uses:
+
+```text
+firewalld
+```
 
 The current public-zone baseline allows:
 
@@ -363,7 +410,9 @@ The default timezone is:
 Etc/UTC
 ```
 
-NTP role: Configure the server timezone and ensure Ubuntu's Chrony service is installed, enabled, and running. Do not manage Chrony's upstream configuration or NTP sources; those remain distribution/environment controlled.
+The role configures the server timezone and ensures Ubuntu's Chrony service is installed, enabled, and running.
+
+It does not manage Chrony's upstream configuration or NTP sources; those remain distribution- and environment-controlled.
 
 ### Journald
 
@@ -454,21 +503,15 @@ sar -d
 sar -n DEV
 ```
 
-## Deployment Configuration
+## Deployer User
 
-Application deployment is intentionally separated from the reusable host baseline.
-
-### Deployment User
-
-```bash
-ansible-playbook playbooks/02-deployment/01-deploy-user.yml
-```
-
-This provisions:
+The baseline provisions:
 
 ```text
 deployer
 ```
+
+as a separate, unprivileged operational identity.
 
 The account:
 
@@ -476,38 +519,32 @@ The account:
 * Uses the configured shell.
 * Uses a dedicated SSH public key.
 * Has its password locked.
-* Does not receive `sudo`.
+* Is not a member of `sudo`.
 * Does not receive a sudoers rule.
 
-### Deployment Layout
+The baseline intentionally does **not** install a deployment engine or define application-specific deployment behavior.
+
+The `deployer` account is therefore an available operational identity rather than part of a particular application deployment implementation.
+
+## Services
+
+Application-independent services are maintained separately from the core setup baseline.
+
+The current service playbook is:
 
 ```bash
-ansible-playbook playbooks/02-deployment/02-deployment-layout.yml
+ansible-playbook playbooks/02-services/caddy.yml
 ```
 
-The deployment boundary is:
+The service layer can be extended with additional reusable roles without making those services mandatory for every server baseline installation.
 
-```text
-/opt/app
-```
+## Caddy
 
-owned by:
+`02-services/caddy.yml` provisions the Caddy web server and its related configuration.
 
-```text
-deployer:deployer
-```
+The role is kept separate from `01-setup/baseline.yml` so that the base server can be provisioned independently of a specific web-serving component.
 
-The role intentionally owns only the deployment root and does not recursively manage application contents.
-
-### Deployment Engine
-
-The deployment engine is maintained separately from the generic baseline:
-
-```text
-playbooks/02-deployment/03-deployment-engine.yml
-```
-
-Application-specific deployment behavior belongs in this layer rather than in the host baseline.
+This separation allows users to apply the server baseline without necessarily installing Caddy.
 
 ## Configuration Management Principles
 
@@ -528,7 +565,7 @@ The project prefers supported drop-in locations such as:
 
 Reusable roles do not contain provider-specific implementation details.
 
-Inventory and environment-specific variables should provide connection information and environment-specific values.
+Inventory and environment-specific variables should provide connection information and other environment-specific values.
 
 ### Idempotency
 
@@ -548,7 +585,15 @@ ansible-playbook playbooks/01-setup/baseline.yml
 ansible-playbook playbooks/01-setup/baseline.yml --check --diff
 ```
 
-which performs recursive playbook syntax checks, inventory validation, and Ansible Lint.
+The final check should normally report:
+
+```text
+changed=0
+failed=0
+unreachable=0
+```
+
+for an already-converged server, except where packages or other declared state have changed externally.
 
 ## CI Validation
 
@@ -597,6 +642,7 @@ It does not currently provide:
 * Complete CIS or other compliance-framework implementation.
 * Provider-specific network-security configuration.
 * Application-level observability.
+* Application deployment or release orchestration.
 
 These are separate capabilities that can be added as the infrastructure evolves.
 
@@ -612,7 +658,8 @@ The project favors:
 * Key-based administration.
 * Configuration isolation.
 * Idempotent automation.
-* Separation of host baseline and application deployment.
+* Separation of host baseline and optional services.
+* Separation of infrastructure baseline from application deployment.
 * Source-controlled desired state.
 
 Changes should be implemented in the appropriate role or playbook whenever practical so that another Ubuntu server can be provisioned consistently from the repository.

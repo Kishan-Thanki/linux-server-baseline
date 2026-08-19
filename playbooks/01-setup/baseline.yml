@@ -8,35 +8,41 @@
 - name: Provision Automation User
   ansible.builtin.import_playbook: 03-automation-user.yml
 
+- name: Provision Deployer User
+  ansible.builtin.import_playbook: 04-deployer-user.yml
+
 - name: Apply SSH Hardening
-  ansible.builtin.import_playbook: 04-ssh-hardening.yml
+  ansible.builtin.import_playbook: 05-ssh-hardening.yml
 
 - name: Configure Firewall
-  ansible.builtin.import_playbook: 05-firewall.yml
+  ansible.builtin.import_playbook: 06-firewall.yml
 
 - name: Configure Fail2ban
-  ansible.builtin.import_playbook: 06-fail2ban.yml
+  ansible.builtin.import_playbook: 07-fail2ban.yml
 
 - name: Configure Time Synchronization
-  ansible.builtin.import_playbook: 07-ntp.yml
+  ansible.builtin.import_playbook: 08-ntp.yml
 
 - name: Configure Persistent Journald
-  ansible.builtin.import_playbook: 08-journald.yml
+  ansible.builtin.import_playbook: 09-journald.yml
 
 - name: Configure Auditd
-  ansible.builtin.import_playbook: 09-auditd.yml
+  ansible.builtin.import_playbook: 10-auditd.yml
 
 - name: Apply Sysctl Hardening
-  ansible.builtin.import_playbook: 10-sysctl.yml
+  ansible.builtin.import_playbook: 11-sysctl.yml
 
 - name: Configure Automatic Security Updates
-  ansible.builtin.import_playbook: 11-auto-updates.yml
+  ansible.builtin.import_playbook: 12-auto-updates.yml
 
 - name: Configure Swap
-  ansible.builtin.import_playbook: 12-swap.yml
+  ansible.builtin.import_playbook: 13-swap.yml
 
 - name: Configure Sysstat
-  ansible.builtin.import_playbook: 13-sysstat.yml
+  ansible.builtin.import_playbook: 14-sysstat.yml
 
 - name: Configure Webroot
-  ansible.builtin.import_playbook: 14-webroot.yml
+  ansible.builtin.import_playbook: 15-webroot.yml
+
+- name: Remove Default User
+  ansible.builtin.import_playbook: 98-remove-default-user.yml

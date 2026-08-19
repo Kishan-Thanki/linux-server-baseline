@@ -14,7 +14,7 @@
       deployer_user_ssh_public_key must point to a readable SSH public key
       file on the Ansible controller.
 
-- name: Create application deployer user
+- name: Create deployment user
   ansible.builtin.user:
     name: "{{ deployer_user_name }}"
     shell: "{{ deployer_user_shell }}"

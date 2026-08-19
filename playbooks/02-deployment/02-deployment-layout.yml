@@ -1,6 +1,0 @@
----
-- name: Configure Deployment Root
-  hosts: servers
-  become: true
-  roles:
-    - deployment_layout

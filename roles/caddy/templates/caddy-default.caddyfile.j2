@@ -1,0 +1,7 @@
+{{ caddy_site_address }} {
+    handle /ping {
+        rewrite * /ping.html
+        root * /var/www
+        file_server
+    }
+}
