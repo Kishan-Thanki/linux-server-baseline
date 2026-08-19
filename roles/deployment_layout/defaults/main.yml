@@ -1,8 +1,0 @@
----
-deployment_layout_root: "/opt/app"
-
-deployment_layout_owner: "deployer"
-
-deployment_layout_group: "deployer"
-
-deployment_layout_directory_mode: "0755"

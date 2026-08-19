@@ -1,0 +1,6 @@
+---
+- name: Configure Caddy
+  hosts: servers
+  become: true
+  roles:
+    - caddy

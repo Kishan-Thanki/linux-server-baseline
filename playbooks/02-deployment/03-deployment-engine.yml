@@ -1,6 +1,0 @@
----
-- name: Install Deployment Engine
-  hosts: servers
-  become: true
-  roles:
-    - deployment_engine
