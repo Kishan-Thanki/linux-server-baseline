@@ -56,3 +56,6 @@ vault-password-file
 .vault-password-file
 
 collection
+
+media/*.html
+media/*.mp4

@@ -5,4 +5,4 @@ KbdInteractiveAuthentication {{ ssh_hardening_kbdinteractive_authentication }}
 PubkeyAuthentication {{ ssh_hardening_pubkey_authentication }}
 X11Forwarding no
 MaxAuthTries 3
-AllowUsers {{ ssh_hardening_allow_users | join(' ') }}
+AllowUsers {{ ssh_hardening_allow_users | unique | join(' ') }}

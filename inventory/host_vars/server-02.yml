@@ -1,17 +1,20 @@
 ---
 # ==============================================================================
-# CRITICAL: Add your actual public SSH keys here BEFORE running the baseline!
+# SSH PUBLIC KEY FILES
 #
-# If you leave these empty, the baseline will disable password authentication
-# and you will permanently lock yourself out of the server.
+# Provide paths to your public SSH key files on the Ansible control machine
+# before running the baseline.
 #
-# Example format: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@machine"
+# The variables below expect file paths, not the SSH public-key contents.
+#
+# Example:
+# system_admin_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519.pub"
+#
+# The corresponding .pub files must exist and be readable by Ansible.
 # ==============================================================================
 
-# Public key for the human administrator (the 'sysadmin' account)
-# You will use this key to manage the server manually.
-system_admin_ssh_public_key: ""
+# Public key file for the human administrator ('sysadmin').
+system_admin_ssh_public_key_file: ""
 
-# Public key for automated tools (the 'automation' account)
-# Use this for GitHub Actions, GitLab CI, or external Ansible controllers.
-automation_user_ssh_public_key: ""
+# Public key file for automated tools ('automation').
+automation_user_ssh_public_key_file: ""
