@@ -2,5 +2,14 @@
 - name: Provision Server Deployer User
   hosts: servers
   become: true
+
+  vars:
+    ssh_hardening_allow_users:
+      - "{{ ansible_user }}"
+      - sysadmin
+      - automation
+      - deployer
+
   roles:
     - deployer_user
+    - ssh_hardening

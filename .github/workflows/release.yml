@@ -1,0 +1,56 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME}"
+          ARCHIVE="linux-server-baseline-${VERSION}.tar.gz"
+
+          git archive \
+            --format=tar.gz \
+            --prefix="linux-server-baseline-${VERSION}/" \
+            --output="$ARCHIVE" \
+            "$GITHUB_SHA" \
+            LICENSE \
+            README.md \
+            ansible.cfg \
+            inventory \
+            playbooks \
+            roles \
+            requirements.yml
+
+          echo "Created ${ARCHIVE}"
+          tar -tzf "$ARCHIVE"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-server-baseline-${{ github.ref_name }}
+          path: linux-server-baseline-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          files: linux-server-baseline-${{ github.ref_name }}.tar.gz
+          generate_release_notes: true
