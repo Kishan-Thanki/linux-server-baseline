@@ -8,10 +8,10 @@
 - name: Validate deployer SSH public key configuration
   ansible.builtin.assert:
     that:
-      - deployer_user_ssh_public_key | length > 0
-      - lookup( 'ansible.builtin.file', deployer_user_ssh_public_key, errors='ignore' ) | trim | length > 0
+      - deployer_user_ssh_public_key_file | length > 0
+      - lookup( 'ansible.builtin.file', deployer_user_ssh_public_key_file, errors='ignore' ) | trim | length > 0
     fail_msg: >-
-      deployer_user_ssh_public_key must point to a readable SSH public key
+      deployer_user_ssh_public_key_file must point to a readable SSH public key
       file on the Ansible controller.
 
 - name: Create deployment user
@@ -27,6 +27,6 @@
 - name: Add SSH authorized key for deployer user
   ansible.posix.authorized_key:
     user: "{{ deployer_user_name }}"
-    key: "{{ lookup('ansible.builtin.file', deployer_user_ssh_public_key) }}"
+    key: "{{ lookup('ansible.builtin.file', deployer_user_ssh_public_key_file) }}"
     state: present
     manage_dir: true

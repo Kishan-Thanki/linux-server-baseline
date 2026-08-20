@@ -2,13 +2,15 @@
 
 Ansible-based Ubuntu server provisioning and hardening.
 
-This repository provides a reusable starting point for establishing a consistent server baseline covering administration, SSH security, firewalling, intrusion prevention, logging, auditing, kernel hardening, automatic security updates, swap, and basic operational tooling.
+This repository provides a reusable starting point for establishing a consistent server baseline covering administration, SSH security, firewalling, basic SSH abuse mitigation, logging, auditing, kernel hardening, automatic security updates, swap, and basic operational tooling.
 
 The project is intentionally modular. Individual components can be applied independently, while `playbooks/01-setup/baseline.yml` provides the primary entry point for the complete server baseline.
 
 The repository is designed to be **Ubuntu-only and cloud-provider agnostic**. It does not embed OCI-, AWS-, Azure-, GCP-, or other provider-specific implementation details.
 
 Application-specific services and deployment workflows are intentionally kept outside the core server baseline.
+
+> **Educational scope:** This project is intended as a practical learning reference and a small, reusable starting point for individual developers, students, and people learning Linux server administration with Ansible. It is intentionally opinionated and does not attempt to implement every possible production or compliance requirement.
 
 ## Repository Structure
 
@@ -45,6 +47,7 @@ linux-server-baseline/
 │   │   └── baseline.yml
 │   └── 02-services/
 │       └── caddy.yml
+├── requirements-dev.txt
 ├── requirements.yml
 └── roles/
     ├── auditd/
@@ -79,13 +82,25 @@ The reusable roles in this repository currently target Ubuntu only.
 
 ### Control Machine
 
-* Python 3.
+* Python 3.11.
 * Ansible.
 * Ansible Lint.
 * OpenSSH client.
-* Access to the target servers using the configured SSH key.
+* Access to the target servers using the configured SSH key files.
+
+The Ansible and Ansible Lint versions used for local validation and CI are pinned in:
+
+```text
+requirements-dev.txt
+```
+
+Using the pinned development dependencies helps keep local and CI validation consistent.
 
 ## Ansible Dependencies
+
+The repository uses two dependency files.
+
+### Ansible Collections
 
 External Ansible collections are pinned in:
 
@@ -107,10 +122,26 @@ collections:
 Install the pinned collections into the repository-local collection directory:
 
 ```bash
-ansible-galaxy collection install -r requirements.yml -p collection
+ansible-galaxy collection install -r requirements.yml -p .ansible/collections
 ```
 
 The repository's `ansible.cfg` configures Ansible to search that local collection path.
+
+### Development and CI Tools
+
+Ansible and Ansible Lint are pinned in:
+
+```text
+requirements-dev.txt
+```
+
+Install them with:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+These dependencies are used by local development and GitHub Actions validation.
 
 ## Configure the Inventory
 
@@ -138,7 +169,65 @@ After the permanent `automation` account has been established, recurring Ansible
 ansible_user=automation
 ```
 
-### Verify the Inventory
+### Configure SSH Public Key Files
+
+The baseline creates three separate identities:
+
+```text
+sysadmin
+automation
+deployer
+```
+
+Each identity uses its own public SSH key.
+
+The corresponding variables expect **paths to public-key files on the Ansible control machine**.
+
+They do **not** contain the public-key text itself.
+
+Example:
+
+```yaml
+system_admin_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519.pub"
+automation_user_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519_automation.pub"
+deployer_user_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519_deployer.pub"
+```
+
+For example, if your control machine contains:
+
+```text
+~/.ssh/id_ed25519.pub
+~/.ssh/id_ed25519_automation.pub
+~/.ssh/id_ed25519_deployer.pub
+```
+
+configure the corresponding paths in the host variables.
+
+The public key files are read by Ansible on the **control machine** and installed into the appropriate user's `authorized_keys` file on the target server.
+
+> **Important:** Variables ending in `_file` refer to public-key file paths on the Ansible control machine. They do not contain public-key contents.
+
+Before running the baseline, make sure all three public key files exist and are readable by the user running Ansible.
+
+### Example Host Variables
+
+```yaml
+---
+# Public key file for the human administrator.
+system_admin_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519.pub"
+
+# Public key file for automated Ansible / CI access.
+automation_user_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519_automation.pub"
+
+# Public key file for the separate deployer identity.
+deployer_user_ssh_public_key_file: "/home/YOUR_USER/.ssh/id_ed25519_deployer.pub"
+```
+
+The baseline will fail validation when a required key file is missing or cannot be read.
+
+> **Do not use your private SSH key here.** Only the `.pub` public-key files should be referenced.
+
+## Verify the Inventory
 
 From the repository root:
 
@@ -165,6 +254,8 @@ Always review the proposed changes before applying the baseline to production in
 ```bash
 ansible-playbook playbooks/01-setup/baseline.yml --check --diff
 ```
+
+> `--check --diff` is useful for reviewing the intended changes, but it is not a substitute for testing the actual resulting server state.
 
 Apply the complete baseline:
 
@@ -194,6 +285,9 @@ This phase:
 * Creates the permanent `sysadmin` account.
 * Creates the permanent `automation` account.
 * Creates the separate `deployer` account for operational release workflows.
+* Installs the configured SSH public keys for all three accounts.
+
+The `deployer` account is intentionally part of the standard baseline rather than an optional component. This provides a simple example of separating human administration, automation, and application/release responsibilities.
 
 ### Phase 2: Security and Hardening
 
@@ -211,7 +305,7 @@ This phase establishes:
 
 * SSH hardening.
 * firewalld host protection.
-* SSH protection with Fail2ban.
+* Basic SSH abuse mitigation with Fail2ban.
 * Chrony time synchronization.
 * Persistent journald logging.
 * Linux audit rules.
@@ -336,13 +430,26 @@ ansible-playbook playbooks/01-setup/98-remove-default-user.yml
 
 Administrative, automation, and operational release responsibilities use separate accounts.
 
-The `deployer` account is intentionally non-privileged.
+The three identities serve different purposes:
+
+```text
+sysadmin
+    Human administrative access.
+
+automation
+    Ansible, CI, and other automated management access.
+
+deployer
+    Non-privileged application or release operations.
+```
+
+The `deployer` account is intentionally non-privileged and is not a member of `sudo`.
 
 ### Key-Based SSH Administration
 
-The baseline disables password-based SSH authentication and direct root SSH access.
+The baseline uses key-based SSH authentication and disables direct root SSH access and password-based authentication.
 
-Current SSH hardening includes:
+The default SSH hardening includes:
 
 ```text
 PermitRootLogin no
@@ -361,6 +468,14 @@ automation
 deployer
 ```
 
+All three accounts must have their intended SSH public keys configured before password authentication is disabled.
+
+These settings are intentionally **conservative and opinionated** for a small Ubuntu server baseline.
+
+They are **not universally correct for every Linux workload**. Systems using VPNs, advanced routing, multihoming, centralized authentication, X11 forwarding, bastion-style configurations, or other specialized SSH workflows may require different settings.
+
+Review and adjust the SSH role defaults when the target server has requirements outside the project's intended use case.
+
 ### Firewall
 
 The host firewall uses:
@@ -369,13 +484,32 @@ The host firewall uses:
 firewalld
 ```
 
-The current public-zone baseline allows:
+The default public-zone baseline currently allows:
 
 ```text
 22/tcp
 80/tcp
 443/tcp
 ```
+
+These defaults are intentionally opinionated.
+
+Port `22/tcp` is required for normal SSH administration.
+
+Ports `80/tcp` and `443/tcp` are opened by default to make the baseline convenient for common learner and individual-developer scenarios where the server will quickly be used for a web application, reverse proxy, or Caddy.
+
+This is a **convenience-oriented default**, not a claim that every server requires HTTP and HTTPS access.
+
+If a server does not need web traffic, the allowed ports can be reduced through the firewall role configuration.
+
+For example:
+
+```yaml
+firewall_allowed_ports:
+  - "22/tcp"
+```
+
+This keeps the firewall role reusable while allowing the default setup to remain simple for common web-server learning scenarios.
 
 Unnecessary services such as:
 
@@ -386,11 +520,62 @@ cockpit
 
 are disabled.
 
-Legacy persistent iptables configuration is removed when present so that firewalld remains the host firewall authority.
+### Legacy iptables Configuration
+
+The baseline uses:
+
+```text
+firewalld
+```
+
+as the host firewall authority.
+
+If the target server already contains persistent legacy iptables configuration, the baseline **does not remove it by default**.
+
+The firewall role checks for:
+
+```text
+/etc/iptables/rules.v4
+```
+
+and, when detected, displays a warning similar to:
+
+```text
+Legacy iptables persistence was detected on this server.
+The baseline will leave it untouched because firewall_remove_legacy_iptables=false.
+Review the existing rules before enabling legacy iptables removal.
+```
+
+This behavior is intentional so that an existing firewall configuration is not silently destroyed.
+
+The default setting is:
+
+```yaml
+firewall_remove_legacy_iptables: false
+```
+
+After reviewing the existing firewall rules, a user who intentionally wants to migrate from `iptables-persistent` / `netfilter-persistent` to firewalld can explicitly enable:
+
+```yaml
+firewall_remove_legacy_iptables: true
+```
+
+When enabled, the role will:
+
+* Stop and disable `netfilter-persistent`.
+* Flush the legacy IPv4 `INPUT` chain.
+* Flush the legacy IPv4 `FORWARD` chain.
+* Remove `iptables-persistent`.
+* Remove `netfilter-persistent`.
+* Remove the persistent IPv4 and IPv6 iptables rules files.
+
+> **Warning:** Enabling legacy iptables removal can change existing firewall behavior and may affect network access. Review the existing rules before enabling it, especially on an existing or remotely managed server.
 
 ### Fail2ban
 
-Fail2ban protects SSH using the systemd journal and firewalld rich rules.
+Fail2ban provides **basic SSH abuse mitigation**.
+
+It monitors SSH authentication failures through the systemd journal and uses firewalld rich rules to temporarily block clients that exceed the configured retry threshold.
 
 Current SSH policy:
 
@@ -399,6 +584,26 @@ bantime  = 1h
 findtime = 10m
 maxretry = 5
 ```
+
+Fail2ban is an additional layer of protection and should not be treated as a replacement for firewalling, strong authentication, or other security controls.
+
+A useful way to understand the layers is:
+
+```text
+Firewall
+    Controls which network traffic is allowed.
+
+SSH authentication
+    Controls who can authenticate.
+
+Fail2ban
+    Provides basic mitigation for repeated authentication abuse.
+
+Audit / logging
+    Records activity for later inspection.
+```
+
+These controls address different problems and should not be considered interchangeable.
 
 ### Time Synchronization
 
@@ -456,7 +661,13 @@ The policy includes protections for:
 * Broadcast ICMP.
 * Bogus ICMP errors.
 
-The role intentionally does not force IPv4 or IPv6 forwarding settings because those are workload-dependent.
+These settings are intentionally **conservative and opinionated**.
+
+They are suitable as a learning-oriented baseline for common Ubuntu server workloads, but they are **not universally correct for every network configuration**.
+
+In particular, systems using custom routing, VPNs, multihoming, packet forwarding, containers, or other advanced networking scenarios may require different kernel network settings.
+
+The role intentionally does not force IPv4 or IPv6 forwarding settings because forwarding requirements are workload-dependent.
 
 ### Automatic Security Updates
 
@@ -467,6 +678,12 @@ Automatic reboot is disabled:
 ```text
 Unattended-Upgrade::Automatic-Reboot "false";
 ```
+
+This means the server will not unexpectedly reboot itself after installing updates.
+
+However, some security updates may not become fully active until the server is rebooted, particularly updates involving the kernel or other components that remain loaded in memory.
+
+Security updates may therefore require a later **manual reboot**.
 
 Automatic unused-package cleanup is also disabled so that package cleanup remains a deliberate administrative operation.
 
@@ -511,20 +728,24 @@ The baseline provisions:
 deployer
 ```
 
-as a separate, unprivileged operational identity.
+as a standard, non-privileged operational identity.
 
 The account:
 
 * Has its own home directory.
 * Uses the configured shell.
-* Uses a dedicated SSH public key.
+* Uses a dedicated SSH public key file.
 * Has its password locked.
 * Is not a member of `sudo`.
 * Does not receive a sudoers rule.
 
-The baseline intentionally does **not** install a deployment engine or define application-specific deployment behavior.
+The `deployer` account is intentionally included in the core baseline to demonstrate a simple separation of responsibilities.
 
-The `deployer` account is therefore an available operational identity rather than part of a particular application deployment implementation.
+This does **not** mean the repository provides a complete application deployment system.
+
+The baseline does not install a deployment engine or define application-specific deployment behavior.
+
+The `deployer` account is therefore an available operational identity that can later be used by a deployment workflow.
 
 ## Services
 
@@ -546,66 +767,73 @@ The role is kept separate from `01-setup/baseline.yml` so that the base server c
 
 This separation allows users to apply the server baseline without necessarily installing Caddy.
 
-## Configuration Management Principles
+The default firewall already allows `80/tcp` and `443/tcp`, so a common learner workflow can install the baseline and then add Caddy without having to separately modify the firewall first.
 
-### Distribution-Owned Configuration
-
-Where practical, Ubuntu's package-managed primary configuration files are preserved.
-
-The project prefers supported drop-in locations such as:
-
-```text
-/etc/ssh/sshd_config.d/
-/etc/systemd/journald.conf.d/
-/etc/audit/rules.d/
-/etc/sysctl.d/
-```
-
-### Cloud-Provider Neutrality
-
-Reusable roles do not contain provider-specific implementation details.
-
-Inventory and environment-specific variables should provide connection information and other environment-specific values.
-
-### Idempotency
-
-Roles should converge toward the desired state without unnecessary repeated changes.
-
-Recommended validation sequence:
-
-```bash
-ansible-lint roles
-ansible-lint playbooks
-
-ansible-playbook playbooks/01-setup/baseline.yml --syntax-check
-ansible-playbook playbooks/01-setup/baseline.yml --check --diff
-
-ansible-playbook playbooks/01-setup/baseline.yml
-
-ansible-playbook playbooks/01-setup/baseline.yml --check --diff
-```
-
-The final check should normally report:
-
-```text
-changed=0
-failed=0
-unreachable=0
-```
-
-for an already-converged server, except where packages or other declared state have changed externally.
+This is an intentional convenience trade-off for the project's educational scope.
 
 ## CI Validation
 
 GitHub Actions validates the repository on pushes and pull requests.
 
-The CI workflow:
+The CI workflow validates the **Ansible repository itself**, including:
 
-1. Installs Ansible and Ansible Lint.
-2. Installs the pinned collections from `requirements.yml`.
-3. Runs the repository validation script.
+1. Ansible configuration and syntax.
+2. Inventory validation.
+3. Ansible Lint checks.
+4. Installation of the pinned Ansible collections.
+5. Repository validation through `scripts/validate-ansible.sh`.
 
-This keeps local and CI validation aligned.
+A successful CI run means the repository passes these automated checks.
+
+It does **not** currently mean that the complete baseline has been successfully applied to a real Ubuntu server.
+
+For functional validation, test the baseline on a disposable Ubuntu VM or test server before applying it to production infrastructure.
+
+A recommended workflow is:
+
+```text
+Repository changes
+        ↓
+GitHub Actions
+        ↓
+Syntax / inventory / lint validation
+        ↓
+Disposable Ubuntu VM
+        ↓
+Apply baseline
+        ↓
+Verify server behavior
+        ↓
+Production use
+```
+
+Functional server testing can be expanded later with integration testing or Molecule-based scenarios as the project grows.
+
+## Validation Philosophy
+
+The baseline is intended to be a **reproducible server foundation**, not a claim of complete security compliance.
+
+The repository separates **repository validation** from **server validation**.
+
+Repository validation checks that the Ansible code is syntactically valid, lint-clean, and structurally consistent.
+
+Server validation checks the actual behavior of the resulting Ubuntu system after the baseline has been applied.
+
+The current CI pipeline focuses on repository validation. Functional server validation remains a separate step using a disposable test environment.
+
+The project favors:
+
+* Explicit platform scope.
+* Cloud-provider neutrality.
+* Least privilege.
+* Key-based administration.
+* Configuration isolation.
+* Idempotent automation.
+* Separation of host baseline and optional services.
+* Separation of infrastructure baseline and application deployment.
+* Source-controlled desired state.
+
+Changes should be implemented in the appropriate role or playbook whenever practical so that another Ubuntu server can be provisioned consistently from the repository.
 
 ## Security and Secrets
 
@@ -621,6 +849,8 @@ Do not commit:
 * API tokens.
 * Certificates containing private keys.
 * Provider-specific secrets.
+
+Public SSH keys are not private credentials, but they should still only contain the public portion of a key pair.
 
 Use secure secret injection or Ansible Vault for sensitive values.
 
@@ -645,21 +875,3 @@ It does not currently provide:
 * Application deployment or release orchestration.
 
 These are separate capabilities that can be added as the infrastructure evolves.
-
-## Validation Philosophy
-
-The baseline is intended to be a **reproducible server foundation**, not a claim of complete security compliance.
-
-The project favors:
-
-* Explicit platform scope.
-* Cloud-provider neutrality.
-* Least privilege.
-* Key-based administration.
-* Configuration isolation.
-* Idempotent automation.
-* Separation of host baseline and optional services.
-* Separation of infrastructure baseline from application deployment.
-* Source-controlled desired state.
-
-Changes should be implemented in the appropriate role or playbook whenever practical so that another Ubuntu server can be provisioned consistently from the repository.
