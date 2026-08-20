@@ -3,6 +3,6 @@ automation_user_name: "automation"
 
 automation_user_shell: "/bin/bash"
 
-automation_user_ssh_public_key: ""
+automation_user_ssh_public_key_file: ""
 
 automation_user_sudo_group: "sudo"

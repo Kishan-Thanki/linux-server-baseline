@@ -2,8 +2,8 @@
 - name: Validate required automation user SSH key configuration
   ansible.builtin.assert:
     that:
-      - automation_user_ssh_public_key | length > 0
-    fail_msg: "automation_user_ssh_public_key must point to the automation public key file."
+      - automation_user_ssh_public_key_file | length > 0
+    fail_msg: "automation_user_ssh_public_key_file must point to the automation public key file."
 
 - name: Ensure sudo group exists
   ansible.builtin.group:
@@ -25,7 +25,7 @@
 - name: Add dedicated SSH authorized key for automation user
   ansible.posix.authorized_key:
     user: "{{ automation_user_name }}"
-    key: "{{ lookup('ansible.builtin.file', automation_user_ssh_public_key) }}"
+    key: "{{ lookup('ansible.builtin.file', automation_user_ssh_public_key_file) }}"
     state: present
 
 - name: Configure passwordless sudo for automation user

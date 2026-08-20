@@ -2,8 +2,8 @@
 - name: Validate required system admin SSH key configuration
   ansible.builtin.assert:
     that:
-      - system_admin_ssh_public_key | length > 0
-    fail_msg: "system_admin_ssh_public_key must point to the admin public key file."
+      - system_admin_ssh_public_key_file | length > 0
+    fail_msg: "system_admin_ssh_public_key_file must point to the admin public key file."
 
 - name: Ensure sudo group exists
   ansible.builtin.group:
@@ -25,7 +25,7 @@
 - name: Add SSH authorized key for system admin user
   ansible.posix.authorized_key:
     user: "{{ system_admin_name }}"
-    key: "{{ lookup('ansible.builtin.file', system_admin_ssh_public_key) }}"
+    key: "{{ lookup('ansible.builtin.file', system_admin_ssh_public_key_file) }}"
     state: present
 
 - name: Configure passwordless sudo for system admin user

@@ -3,6 +3,6 @@ system_admin_name: "sysadmin"
 
 system_admin_shell: "/bin/bash"
 
-system_admin_ssh_public_key: ""
+system_admin_ssh_public_key_file: ""
 
 system_admin_sudo_group: "sudo"

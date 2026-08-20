@@ -9,3 +9,7 @@ firewall_allowed_ports:
 firewall_blocked_services:
   - "dhcpv6-client"
   - "cockpit"
+
+# Set to true only after reviewing an existing
+# iptables/netfilter-persistent configuration.
+firewall_remove_legacy_iptables: false

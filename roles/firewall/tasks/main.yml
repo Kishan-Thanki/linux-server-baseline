@@ -40,12 +40,24 @@
     path: /etc/iptables/rules.v4
   register: firewall_legacy_rules_v4
 
+- name: Warn when legacy persistent iptables rules are detected
+  ansible.builtin.debug:
+    msg:
+      - "Legacy iptables persistence was detected on this server."
+      - "The baseline will leave it untouched because firewall_remove_legacy_iptables=false."
+      - "Review the existing rules before enabling legacy iptables removal."
+  when:
+    - firewall_legacy_rules_v4.stat.exists
+    - not firewall_remove_legacy_iptables
+
 - name: Stop legacy netfilter-persistent service
   ansible.builtin.service:
     name: netfilter-persistent
     state: stopped
     enabled: false
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
   failed_when: false
 
 - name: Flush legacy IPv4 INPUT chain
@@ -53,37 +65,49 @@
     chain: INPUT
     table: filter
     flush: true
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
 
 - name: Flush legacy IPv4 FORWARD chain
   ansible.builtin.iptables:
     chain: FORWARD
     table: filter
     flush: true
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
 
 - name: Remove iptables-persistent package
   ansible.builtin.apt:
     name: iptables-persistent
     state: absent
     purge: true
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
 
 - name: Remove netfilter-persistent package
   ansible.builtin.apt:
     name: netfilter-persistent
     state: absent
     purge: true
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
 
 - name: Remove legacy IPv4 iptables rules file
   ansible.builtin.file:
     path: /etc/iptables/rules.v4
     state: absent
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
 
 - name: Remove legacy IPv6 iptables rules file
   ansible.builtin.file:
     path: /etc/iptables/rules.v6
     state: absent
-  when: firewall_legacy_rules_v4.stat.exists
+  when:
+    - firewall_remove_legacy_iptables
+    - firewall_legacy_rules_v4.stat.exists
