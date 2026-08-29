@@ -26,7 +26,7 @@ playbooks/01-setup/baseline.yml
 
 provides the primary entry point for the core server baseline.
 
-The repository is designed to be **Ubuntu-only and cloud-provider agnostic**. It does not embed OCI-, AWS-, Azure-, GCP-, or other provider-specific implementation details.
+The repository is designed to be **Ubuntu-only and cloud-provider agnostic**. It does not embed any cloud-specific or provider-specific implementation details.
 
 Deployment-related identities and application services are kept outside the core server baseline.
 
@@ -72,6 +72,8 @@ Configure inventory
         ↓
 Configure SSH public-key files
         ↓
+Configure SSH access policy
+        ↓
 Install Ansible dependencies
         ↓
 Review with --check --diff
@@ -81,12 +83,6 @@ Run the core baseline
 Verify access
         ↓
 Customize or add deployment/services as needed
-```
-
-Install the development tools:
-
-```bash
-python -m pip install -r requirements-dev.txt
 ```
 
 Install the pinned Ansible collections:
@@ -101,6 +97,8 @@ Configure:
 
 ```text
 inventory/inventory.ini
+inventory/host_vars/
+inventory/group_vars/
 ```
 
 and the required SSH public-key file variables.
@@ -119,7 +117,7 @@ Apply the core baseline:
 ansible-playbook playbooks/01-setup/baseline.yml
 ```
 
-The repository is designed to provide sensible defaults while remaining customizable. Review and adjust role defaults and host variables when your server has requirements outside the default configuration.
+The repository is designed to provide sensible defaults while remaining customizable. Review and adjust role defaults, group variables, and host variables when your server has requirements outside the default configuration.
 
 ## Repository Structure
 
@@ -127,8 +125,12 @@ The repository is designed to provide sensible defaults while remaining customiz
 linux-server-baseline/
 ├── LICENSE
 ├── README.md
+├── SECURITY.md
+├── DISCLAIMER.md
 ├── ansible.cfg
 ├── inventory/
+│   ├── group_vars/
+│   │   └── servers.yml
 │   ├── host_vars/
 │   │   ├── server-01.yml
 │   │   └── server-02.yml
@@ -155,28 +157,25 @@ linux-server-baseline/
 │   │   └── 01-deployer-user.yml
 │   └── 03-services/
 │       └── caddy.yml
-├── requirements-dev.txt
 ├── requirements.yml
-├── roles/
-│   ├── auditd/
-│   ├── auto_updates/
-│   ├── automation_user/
-│   ├── caddy/
-│   ├── deployer_user/
-│   ├── fail2ban/
-│   ├── firewall/
-│   ├── journald/
-│   ├── ntp/
-│   ├── remove_default_user/
-│   ├── ssh_hardening/
-│   ├── swap/
-│   ├── sysctl/
-│   ├── sysstat/
-│   ├── system_admin/
-│   ├── system_update/
-│   └── webroot/
-└── scripts/
-    └── validate-ansible.sh
+└── roles/
+    ├── auditd/
+    ├── auto_updates/
+    ├── automation_user/
+    ├── caddy/
+    ├── deployer_user/
+    ├── fail2ban/
+    ├── firewall/
+    ├── journald/
+    ├── ntp/
+    ├── remove_default_user/
+    ├── ssh_hardening/
+    ├── swap/
+    ├── sysctl/
+    ├── sysstat/
+    ├── system_admin/
+    ├── system_update/
+    └── webroot/
 ```
 
 ## Requirements
@@ -198,17 +197,9 @@ The reusable roles in this repository currently target Ubuntu only.
 * OpenSSH client.
 * Access to the target servers using the configured SSH key files.
 
-The Ansible and Ansible Lint versions used for local validation and CI are pinned in:
-
-```text
-requirements-dev.txt
-```
-
-Using the pinned development dependencies helps keep local and CI validation consistent.
-
 ## Ansible Dependencies
 
-The repository uses two dependency files.
+The repository uses dependency file.
 
 ### Ansible Collections
 
@@ -239,22 +230,6 @@ ansible-galaxy collection install \
 
 The repository's `ansible.cfg` configures Ansible to search that local collection path.
 
-### Development and CI Tools
-
-Ansible and Ansible Lint are pinned in:
-
-```text
-requirements-dev.txt
-```
-
-Install them with:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-These dependencies are used by local development and GitHub Actions validation.
-
 ## Configure the Inventory
 
 The repository includes an example inventory at:
@@ -263,7 +238,9 @@ The repository includes an example inventory at:
 inventory/inventory.ini
 ```
 
-Because this is a public repository, it should contain placeholder values rather than production endpoints or credentials.
+Because this is a public repository, it contains placeholder values rather than production endpoints or credentials.
+
+Configure the placeholder values for your environment before using the inventory.
 
 Example:
 
@@ -280,6 +257,74 @@ After the permanent `automation` account has been established, recurring Ansible
 ```ini
 ansible_user=automation
 ```
+
+## Configure SSH Access Policy
+
+SSH access is controlled by the `ssh_hardening` role.
+
+The role itself has an empty default allow-list:
+
+```yaml
+ssh_hardening_allow_users: []
+```
+
+The actual users permitted to connect are defined for the managed server group in:
+
+```text
+inventory/group_vars/servers.yml
+```
+
+Example:
+
+```yaml
+---
+# SSH users explicitly authorized to access servers.
+# Update this list whenever a user is added to or removed from SSH access.
+# This is the source of truth for ssh_hardening_allow_users.
+
+ssh_hardening_allow_users:
+  - "{{ ansible_user }}"
+  - sysadmin
+  - automation
+  - deployer
+```
+
+This separation is intentional.
+
+The generic `ssh_hardening` role does not assume that every server has the same set of users. The inventory/group variables define which users are actually authorized for the `servers` group.
+
+### Adding or Removing an SSH User
+
+When a user is intentionally added to SSH access, add that user to:
+
+```text
+inventory/group_vars/servers.yml
+```
+
+For example, to allow `deployer`:
+
+```yaml
+ssh_hardening_allow_users:
+  - "{{ ansible_user }}"
+  - sysadmin
+  - automation
+  - deployer
+```
+
+To remove `deployer` from SSH access:
+
+```yaml
+ssh_hardening_allow_users:
+  - "{{ ansible_user }}"
+  - sysadmin
+  - automation
+```
+
+> **Important:** `ssh_hardening_allow_users` is the source of truth for the SSH `AllowUsers` directive. Whenever SSH access is intentionally changed, update this file and review the resulting SSH configuration before applying it.
+
+The role can also combine the configured allow-list with role-specific additional users. Duplicates are removed before rendering the final `AllowUsers` directive.
+
+This prevents generic role defaults from silently adding users to every server.
 
 ## Configure SSH Public Key Files
 
@@ -498,8 +543,21 @@ The `deployer` account:
 * Is not a member of `sudo`.
 * Does not receive a sudoers rule.
 
-The deployment playbook creates the user and installs its authorized SSH public key. The deployment playbook also updates the SSH `AllowUsers` policy so that
-the `deployer` account can connect using its configured public key.
+The deployment playbook creates the user and installs its authorized SSH public key.
+
+SSH access for the `deployer` account is controlled through:
+
+```text
+inventory/group_vars/servers.yml
+```
+
+If `deployer` is included in `ssh_hardening_allow_users`, the SSH hardening configuration permits the account to connect.
+
+If `deployer` is removed from that list, subsequent application of the SSH hardening role removes it from the SSH `AllowUsers` policy.
+
+This means provisioning the account and authorizing SSH access are separate pieces of desired state.
+
+> **Important:** If `deployer` is not intended to have SSH access, do not add it to `ssh_hardening_allow_users`.
 
 The deployment layer does not install a complete application deployment engine or define application-specific release workflows.
 
@@ -521,6 +579,8 @@ sysadmin + automation created
 SSH / firewall / logging / security configuration
         ↓
 Verify permanent management access
+        ↓
+Optionally configure deployer SSH access
         ↓
 Optionally run 02-deployment/01-deployer-user.yml
         ↓
@@ -578,15 +638,21 @@ X11Forwarding no
 MaxAuthTries 3
 ```
 
-The core baseline allows the current Ansible connection user together with the permanent management accounts.
+The actual SSH `AllowUsers` policy is defined through:
 
-The optional `deployer` account should only be included in SSH access when deployment setup is enabled and the account is configured appropriately.
+```text
+inventory/group_vars/servers.yml
+```
+
+The SSH hardening role itself does not assume a universal list of users.
+
+This makes the role reusable while allowing each inventory to define its own SSH access policy.
 
 These settings are intentionally **conservative and opinionated** for a small Ubuntu server baseline.
 
 They are **not universally correct for every Linux workload**. Systems using VPNs, advanced routing, multihoming, centralized authentication, X11 forwarding, bastion-style configurations, or other specialized SSH workflows may require different settings.
 
-Review and adjust the SSH role defaults when the target server has requirements outside the project's intended use case.
+Review and adjust the SSH role variables when the target server has requirements outside the project's intended use case.
 
 ### Firewall
 
@@ -595,6 +661,8 @@ The host firewall uses:
 ```text
 firewalld
 ```
+
+as the firewall authority.
 
 The default public-zone baseline currently allows:
 
@@ -621,57 +689,7 @@ firewall_allowed_ports:
   - "22/tcp"
 ```
 
-Unnecessary services such as:
-
-```text
-dhcpv6-client
-cockpit
-```
-
-are disabled.
-
-### Legacy iptables Configuration
-
-The baseline uses:
-
-```text
-firewalld
-```
-
-as the host firewall authority.
-
-If the target server already contains persistent legacy iptables configuration, the baseline **does not remove it by default**.
-
-The firewall role checks for:
-
-```text
-/etc/iptables/rules.v4
-```
-
-and, when detected, displays a warning.
-
-The default setting is:
-
-```yaml
-firewall_remove_legacy_iptables: false
-```
-
-After reviewing the existing firewall rules, a user who intentionally wants to migrate from `iptables-persistent` / `netfilter-persistent` to firewalld can explicitly enable:
-
-```yaml
-firewall_remove_legacy_iptables: true
-```
-
-When enabled, the role:
-
-* Stops and disables `netfilter-persistent`.
-* Flushes the legacy IPv4 `INPUT` chain.
-* Flushes the legacy IPv4 `FORWARD` chain.
-* Removes `iptables-persistent`.
-* Removes `netfilter-persistent`.
-* Removes the persistent IPv4 and IPv6 iptables rules files.
-
-> **Warning:** Enabling legacy iptables removal can change existing firewall behavior and may affect network access. Review the existing rules before enabling it, especially on an existing or remotely managed server.
+The firewall role manages the declared `firewalld` configuration and does not automatically remove unrelated legacy iptables configuration.
 
 ### Fail2ban
 
@@ -767,7 +785,7 @@ These settings are intentionally **conservative and opinionated**.
 
 They are suitable as a learning-oriented baseline for common Ubuntu server workloads, but they are **not universally correct for every network configuration**.
 
-In particular, systems using custom routing, VPNs, multihoming, packet forwarding, containers, or other advanced networking scenarios may require different kernel network settings.
+In particular, systems using custom routing, VPNs, multihoming, containers, packet forwarding, or other advanced networking scenarios may require different kernel network settings.
 
 The role intentionally does not force IPv4 or IPv6 forwarding settings because forwarding requirements are workload-dependent.
 
@@ -804,6 +822,8 @@ with:
 ```
 
 The swap file is protected with mode `0600` and persisted through `/etc/fstab`.
+
+The role explicitly checks the existing swap file signature and creates the swap signature with `mkswap` only when required.
 
 ### Sysstat
 
@@ -850,43 +870,16 @@ The default firewall already allows `80/tcp` and `443/tcp`, so a common learner 
 
 This is an intentional convenience trade-off for the project's scope.
 
-## CI Validation
-
-GitHub Actions validates the repository on pushes and pull requests.
-
-The CI workflow validates the **Ansible repository itself**, including:
-
-1. Ansible configuration and syntax.
-2. Inventory validation.
-3. Ansible Lint checks.
-4. Installation of the pinned Ansible collections.
-5. Repository validation through `scripts/validate-ansible.sh`.
-
-A successful CI run means the repository passes these automated checks.
-
-It does **not** currently mean that the complete baseline has been successfully applied to a real Ubuntu server.
-
-For functional validation, test the baseline on a disposable Ubuntu VM or test server before applying it to production infrastructure.
-
-A recommended workflow is:
+The Caddy role uses a main configuration file together with a drop-in directory:
 
 ```text
-Repository changes
-        ↓
-GitHub Actions
-        ↓
-Syntax / inventory / lint validation
-        ↓
-Disposable Ubuntu VM
-        ↓
-Apply baseline
-        ↓
-Verify server behavior
-        ↓
-Production use
+/etc/caddy/Caddyfile
+/etc/caddy/Caddyfile.d/
 ```
 
-Functional server testing can be expanded later with integration testing or Molecule-based scenarios as the project grows.
+The role also provides a systemd/inotify-based watcher so changes to Caddy drop-in configuration can trigger validation and reload handling.
+
+Caddy configuration changes are validated before reloads are performed.
 
 ## Security and Secrets
 
@@ -908,6 +901,34 @@ Public SSH keys are not private credentials, but they should still only contain 
 Use secure secret injection or Ansible Vault for sensitive values.
 
 The public repository intentionally contains placeholder inventory values.
+
+## Security Reporting
+
+Security vulnerabilities should not be disclosed through public GitHub issues.
+
+The repository provides a dedicated:
+
+```text
+SECURITY.md
+```
+
+with the project's security reporting guidance.
+
+Please review that file before reporting a potential security vulnerability.
+
+## Disclaimer
+
+This project is provided as an educational and reusable starting point for Ubuntu server administration and automation.
+
+The repository includes a dedicated:
+
+```text
+DISCLAIMER.md
+```
+
+which describes the project's scope, limitations, lack of warranties, security considerations, and user responsibilities.
+
+Review it before applying the baseline to important or production infrastructure.
 
 ## Current Limitations
 
@@ -939,8 +960,6 @@ Repository validation checks that the Ansible code is syntactically valid, lint-
 
 Server validation checks the actual behavior of the resulting Ubuntu system after the baseline has been applied.
 
-The current CI pipeline focuses on repository validation. Functional server validation remains a separate step using a disposable test environment.
-
 The project favors:
 
 * Explicit platform scope.
@@ -950,6 +969,63 @@ The project favors:
 * Configuration isolation.
 * Idempotent automation.
 * Separation of host baseline, deployment identities, and optional services.
+* Explicit SSH access policy.
 * Source-controlled desired state.
 
 For production systems or specialized workloads, review and adapt the baseline to the environment before use.
+
+## Contributing and Issues
+
+Contributions, bug reports, and feature suggestions are welcome.
+
+Before opening an issue, make sure the problem is reproducible and include the relevant Ansible output, playbook or role, Ubuntu version, and Ansible version.
+
+Remove private keys, credentials, tokens, and other sensitive information from logs and configuration.
+
+### Bug Reports
+
+The bug report template asks for information such as:
+
+* Description of the issue.
+* Affected playbook or role.
+* Target Ubuntu version.
+* Ansible version.
+* Relevant error output.
+* Steps to reproduce.
+* Additional configuration or context.
+
+### Feature Requests
+
+* New roles.
+* Security controls.
+* Operational improvements.
+* Educational enhancements.
+
+Feature proposals should fit the project's intended scope: Ubuntu server administration, small-server use cases, and a practical reusable baseline rather than a full enterprise or compliance framework.
+
+### Contribution Guidelines
+
+When contributing:
+
+* Keep changes focused and modular.
+* Preserve Ubuntu-only scope unless the project explicitly expands its supported platforms.
+* Prefer idempotent Ansible tasks.
+* Keep security-sensitive changes explicit and reviewable.
+* Avoid embedding cloud-provider-specific implementation details.
+* Do not commit secrets or private credentials.
+* Update documentation when behavior or configuration changes.
+* Run the repository's validation checks before submitting a change.
+
+## License
+
+This project is licensed under the **MIT License**.
+
+The complete license text is available in:
+
+```text
+LICENSE
+```
+
+The MIT License permits use, modification, distribution, and private or commercial use subject to its terms.
+
+Review the `LICENSE` file for the complete legal terms.

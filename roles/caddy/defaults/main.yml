@@ -14,5 +14,6 @@ caddy_inotify_package: inotify-tools
 caddy_reload_debounce_seconds: 2
 
 caddy_webroot: /var/www
+caddy_index_file: ping.html
 
 caddy_site_address: ""

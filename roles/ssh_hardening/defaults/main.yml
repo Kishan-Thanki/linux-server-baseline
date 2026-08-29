@@ -9,7 +9,4 @@ ssh_hardening_pubkey_authentication: "yes"
 
 ssh_hardening_kbdinteractive_authentication: "no"
 
-ssh_hardening_allow_users:
-  - "{{ ansible_user }}"
-  - sysadmin
-  - automation
+ssh_hardening_allow_users: []

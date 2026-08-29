@@ -1,7 +1,7 @@
 [Unit]
 Description=Watch Caddy drop-in configuration directory
-After=caddy.service
-Requires=caddy.service
+After={{ caddy_service_name }}.service
+Requires={{ caddy_service_name }}.service
 
 [Service]
 Type=simple

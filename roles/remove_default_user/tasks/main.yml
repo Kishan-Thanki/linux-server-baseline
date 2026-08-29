@@ -10,9 +10,10 @@
     that:
       - remove_default_user_name | length > 0
       - remove_default_user_name not in remove_default_user_protected_users
+      - remove_default_user_name != ansible_user
     fail_msg: >-
-      remove_default_user_name must be explicitly configured and must not
-      match a protected user account.
+      remove_default_user_name must not be empty, must not match a protected
+      user account, and must not be the current Ansible connection user.
 
 - name: Check whether default user exists
   ansible.builtin.getent:
@@ -20,10 +21,13 @@
     key: "{{ remove_default_user_name }}"
   register: remove_default_user_lookup
   failed_when: false
+  changed_when: false
 
 - name: Remove cloud provisioned user
   ansible.builtin.user:
     name: "{{ remove_default_user_name }}"
     state: absent
     remove: true
-  when: remove_default_user_name in (ansible_facts.getent_passwd | default({}))
+  when:
+    - remove_default_user_lookup.ansible_facts.getent_passwd is defined
+    - remove_default_user_name in remove_default_user_lookup.ansible_facts.getent_passwd

@@ -1,0 +1,10 @@
+---
+# SSH users explicitly authorized to access servers.
+# Update this list whenever a user is added to or removed from SSH access.
+# This is the source of truth for ssh_hardening_allow_users.
+
+ssh_hardening_allow_users:
+  - "{{ ansible_user }}"
+  - sysadmin
+  - automation
+  - deployer
