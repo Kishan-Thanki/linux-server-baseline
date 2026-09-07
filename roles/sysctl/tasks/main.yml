@@ -2,8 +2,10 @@
 - name: Verify supported operating system
   ansible.builtin.assert:
     that:
-      - ansible_facts['distribution'] == "Ubuntu"
-    fail_msg: "This sysctl role supports Ubuntu only."
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This sysctl role supports
+      {{ supported_os_distribution | join(', ') }} only.
 
 - name: Ensure sysctl.d directory exists
   ansible.builtin.file:
@@ -13,7 +15,7 @@
     group: root
     mode: "0755"
 
-- name: Apply kernel network hardening settings
+- name: Apply sysctl hardening settings
   ansible.posix.sysctl:
     name: "{{ item.key }}"
     value: "{{ item.value | string }}"

@@ -1,0 +1,8 @@
+---
+release_engine_apps_root: "/opt/apps"
+
+release_engine_user_name: "deployer"
+
+release_engine_cli_path: "/usr/local/bin/deploy"
+
+release_engine_default_keep_releases: 3

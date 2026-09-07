@@ -1,7 +1,0 @@
-{{ caddy_site_address }} {
-    handle /ping {
-        rewrite * /{{ caddy_index_file }}
-        root * {{ caddy_webroot }}
-        file_server
-    }
-}

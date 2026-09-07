@@ -1,5 +1,13 @@
 ---
-- name: Install Caddy and inotify-tools
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This caddy role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Ensure Caddy and inotify-tools are installed
   ansible.builtin.apt:
     name:
       - "{{ caddy_package_name }}"
@@ -33,14 +41,14 @@
     validate: "caddy validate --config %s --adapter caddyfile"
   notify: Reload Caddy
 
-- name: Deploy default Caddy site
+- name: Deploy Caddy reload script
   ansible.builtin.template:
-    src: caddy-default.caddyfile.j2
-    dest: "{{ caddy_dropin_dir }}/default.caddyfile"
+    src: caddy-reload.sh.j2
+    dest: "/usr/local/sbin/caddy-reload"
     owner: root
     group: root
-    mode: "0644"
-  notify: Reload Caddy
+    mode: "0755"
+  notify: Restart Caddy watcher
 
 - name: Deploy Caddy reload service
   ansible.builtin.template:
@@ -49,7 +57,9 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart Caddy watcher
+  notify:
+    - Reload systemd daemon
+    - Restart Caddy watcher
 
 - name: Deploy Caddy watcher script
   ansible.builtin.template:
@@ -67,11 +77,9 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart Caddy watcher
-
-- name: Reload systemd daemon
-  ansible.builtin.systemd:
-    daemon_reload: true
+  notify:
+    - Reload systemd daemon
+    - Restart Caddy watcher
 
 - name: Ensure Caddy is enabled and running
   ansible.builtin.systemd:

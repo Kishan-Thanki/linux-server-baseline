@@ -6,3 +6,7 @@ fail2ban_maxretry: 5
 fail2ban_ignoreip:
   - "127.0.0.1/8"
   - "::1"
+
+fail2ban_ssh_port: "ssh"
+
+# the Fail2ban SSH port configurable so it stays synchronized with your future SSH hardening changes.

@@ -1,0 +1,11 @@
+---
+# Default proxy drop-in directory for the active reverse proxy runtime.
+# Replace this value to match the proxy backend in use, for example:
+#   - /etc/caddy/Caddyfile.d
+#   - /etc/nginx/conf.d
+
+deployproxy_dropin_dir: /etc/caddy/Caddyfile.d
+
+deployproxy_command: deployproxy
+
+deployproxy_cli_path: "/usr/local/bin/deployproxy"

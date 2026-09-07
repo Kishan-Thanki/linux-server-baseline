@@ -7,10 +7,14 @@ RELOAD_SERVICE="{{ caddy_reload_service_name }}"
 DEBOUNCE_SECONDS="{{ caddy_reload_debounce_seconds }}"
 
 while true; do
-    /usr/bin/inotifywait \
+    if ! /usr/bin/inotifywait \
         -r \
         -e close_write,create,delete,move,attrib \
         "${WATCH_DIR}"
+    then
+        sleep 2
+        continue
+    fi
 
     while /usr/bin/inotifywait \
         -r \

@@ -1,9 +1,18 @@
 ---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This automation_user role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
 - name: Validate required automation user SSH key configuration
   ansible.builtin.assert:
     that:
       - automation_user_ssh_public_key_file | length > 0
-    fail_msg: "automation_user_ssh_public_key_file must point to the automation public key file."
+      - lookup('ansible.builtin.file', automation_user_ssh_public_key_file, errors='ignore') | length > 0
+    fail_msg: "automation_user_ssh_public_key_file must point to a valid automation public key file."
 
 - name: Ensure sudo group exists
   ansible.builtin.group:

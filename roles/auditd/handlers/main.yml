@@ -2,5 +2,6 @@
 - name: Load audit rules
   ansible.builtin.command:
     cmd: augenrules --load
-  changed_when: false
   check_mode: false
+  register: auditd_augenrules_result
+  changed_when: "'changed' in auditd_augenrules_result.stdout"

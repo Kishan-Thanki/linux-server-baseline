@@ -4,21 +4,21 @@
     that:
       - ansible_facts['distribution'] in supported_os_distribution
     fail_msg: >-
-      This webroot role supports
+      This deployproxy role supports
       {{ supported_os_distribution | join(', ') }} only.
 
-- name: Create web root directory
+- name: Ensure proxy drop-in directory exists
   ansible.builtin.file:
-    path: "{{ webroot_path }}"
+    path: "{{ deployproxy_dropin_dir }}"
     state: directory
+    owner: root
+    group: deployer
+    mode: "2775"
+
+- name: Install proxy deployment CLI script
+  ansible.builtin.template:
+    src: deployproxy.j2
+    dest: "{{ deployproxy_cli_path }}"
     owner: root
     group: root
     mode: "0755"
-
-- name: Create default web page
-  ansible.builtin.template:
-    src: index.html.j2
-    dest: "{{ webroot_path }}/{{ webroot_index_file }}"
-    owner: root
-    group: root
-    mode: "0644"

@@ -2,8 +2,10 @@
 - name: Verify supported operating system
   ansible.builtin.assert:
     that:
-      - ansible_facts['distribution'] == "Ubuntu"
-    fail_msg: "This auto_updates role supports Ubuntu only."
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This auto_updates role supports
+      {{ supported_os_distribution | join(', ') }} only.
 
 - name: Ensure unattended-upgrades is installed
   ansible.builtin.apt:
@@ -31,7 +33,7 @@
 
 - name: Validate unattended-upgrades configuration
   ansible.builtin.command:
-    cmd: unattended-upgrade --dry-run
+    cmd: unattended-upgrade --dry-run --debug
   changed_when: false
   check_mode: false
   when: auto_updates_enabled

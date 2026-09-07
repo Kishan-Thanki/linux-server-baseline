@@ -2,8 +2,10 @@
 - name: Verify supported operating system
   ansible.builtin.assert:
     that:
-      - ansible_facts['distribution'] == "Ubuntu"
-    fail_msg: "This swap role supports Ubuntu only."
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This swap role supports
+      {{ supported_os_distribution | join(', ') }} only.
 
 - name: Check current swap status
   ansible.builtin.command:
@@ -19,15 +21,20 @@
   when: swap_enabled
 
 - name: Create swap file when missing
-  community.general.filesize:
-    path: "{{ swap_file }}"
-    size: "{{ swap_size_mb }}M"
-    owner: root
-    group: root
-    mode: "0600"
+  ansible.builtin.command:
+    cmd: "fallocate -l {{ swap_size_mb }}M {{ swap_file }}"
+    creates: "{{ swap_file }}"
   when:
     - swap_enabled
     - not swap_file_status.stat.exists
+
+- name: Set swap file permissions
+  ansible.builtin.file:
+    path: "{{ swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: swap_enabled
 
 - name: Check swap file signature
   ansible.builtin.command:
@@ -36,9 +43,7 @@
   changed_when: false
   failed_when: false
   check_mode: false
-  when:
-    - swap_enabled
-    - swap_file_status.stat.exists
+  when: swap_enabled
 
 - name: Create swap signature when missing
   ansible.builtin.command:
