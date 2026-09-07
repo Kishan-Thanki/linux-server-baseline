@@ -40,3 +40,6 @@
 
 - name: Configure Webroot
   ansible.builtin.import_playbook: 14-webroot.yml
+
+- name: Configure AppArmor
+  ansible.builtin.import_playbook: 15-apparmor.yml

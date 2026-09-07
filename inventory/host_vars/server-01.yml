@@ -18,3 +18,6 @@ system_admin_ssh_public_key_file: ""
 
 # Public key file for automated tools ('automation').
 automation_user_ssh_public_key_file: ""
+
+# Public key file for deployment automation ('deployer').
+deployer_user_ssh_public_key_file: ""

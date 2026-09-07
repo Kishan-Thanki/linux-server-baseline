@@ -1,0 +1,7 @@
+---
+- name: Configure AppArmor
+  hosts: servers
+  become: true
+
+  roles:
+    - role: apparmor
