@@ -1,0 +1,44 @@
+---
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This release_engine role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Ensure deployment root directory exists
+  ansible.builtin.file:
+    path: "{{ release_engine_apps_root }}"
+    state: directory
+    owner: "{{ release_engine_user_name }}"
+    group: "{{ release_engine_user_name }}"
+    mode: "0775"
+
+- name: Install deployment CLI dependency packages
+  ansible.builtin.apt:
+    name:
+      - curl
+      - tar
+      - unzip
+      - jq
+      - netcat-openbsd
+    state: present
+    update_cache: true
+
+- name: Install deployment CLI script from template
+  ansible.builtin.template:
+    src: deploy.j2
+    dest: "{{ release_engine_cli_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure passwordless sudo rule for deploy CLI and systemctl reloads
+  ansible.builtin.copy:
+    content: |
+      {{ release_engine_user_name }} ALL=(ALL) NOPASSWD: {{ release_engine_cli_path }}, /bin/systemctl restart *, /bin/systemctl reload *
+    dest: "/etc/sudoers.d/{{ release_engine_user_name }}"
+    owner: root
+    group: root
+    mode: "0440"

@@ -1,7 +1,0 @@
----
-firewall_zone: "public"
-
-firewall_allowed_ports:
-  - "22/tcp" # Thinking of update in future
-  - "80/tcp"
-  - "443/tcp"

@@ -16,6 +16,7 @@ ssh_hardening_allow_users:
 # Users that must be preserved when the default user is removed.
 # These accounts are exempt from deletion and must remain available.
 remove_default_user_protected_users:
+  - "{{ ansible_user }}"
   - "sysadmin"
   - "automation"
   - "deployer"

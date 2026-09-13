@@ -2,6 +2,5 @@
 - name: Provision Application Deployment Engine
   hosts: servers
   become: true
-
   roles:
     - release_engine

@@ -1,0 +1,4 @@
+---
+deployproxy_command: "deployproxy"
+
+deployproxy_cli_path: "/usr/local/bin/deployproxy"

@@ -2,6 +2,5 @@
 - name: Provision generic proxy deployment CLI
   hosts: servers
   become: true
-
   roles:
     - deployproxy
