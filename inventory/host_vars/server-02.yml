@@ -22,4 +22,3 @@ automation_user_ssh_public_key_file: "{{ keys_dir }}/server-02/automation_ed2551
 
 # Public key file for deployment automation ('deployer').
 deployer_user_ssh_public_key_file: "{{ keys_dir }}/server-02/deployer_ed25519.pub"
-
