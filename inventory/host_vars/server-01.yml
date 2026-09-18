@@ -14,10 +14,11 @@
 # ==============================================================================
 
 # Public key file for the human administrator ('sysadmin').
-system_admin_ssh_public_key_file: ""
+system_admin_ssh_public_key_file: "{{ keys_dir }}/server-01/sysadmin_ed25519.pub"
 
 # Public key file for automated tools ('automation').
-automation_user_ssh_public_key_file: ""
+automation_user_ssh_public_key_file: "{{ keys_dir }}/server-01/automation_ed25519.pub"
 
 # Public key file for deployment automation ('deployer').
-deployer_user_ssh_public_key_file: ""
+deployer_user_ssh_public_key_file: "{{ keys_dir }}/server-01/deployer_ed25519.pub"
+

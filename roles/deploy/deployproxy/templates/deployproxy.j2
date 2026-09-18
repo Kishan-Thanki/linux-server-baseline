@@ -27,7 +27,7 @@ show_usage() {
     Usage: {{ deployproxy_command }} --name <app_name> --artifact <https://...> --proxy-ext <ext> [options]
 
     Required options:
-      --name <app_name>            Application name, e.g. webapp
+      --name <app_name>            Application name, e.g. resumeranker
       --artifact <source>          HTTP(S) URL to the raw proxy configuration
       --proxy-ext <ext>            Config extension to write, e.g. caddyfile or conf
 
@@ -144,7 +144,7 @@ if [[ "${artifact}" != http://* && "${artifact}" != https://* ]]; then
   exit 1
 fi
 
-target_file="${deployproxy_dropin_dir}/${app_name}.${proxy_ext}"
+target_file="{{ deployproxy_dropin_dir }}/${app_name}.${proxy_ext}"
 temp_file=$(mktemp /tmp/proxy.XXXXXX)
 
 cleanup() {

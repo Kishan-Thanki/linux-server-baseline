@@ -4,6 +4,3 @@
 
 - name: Ensure deployproxy is provisioned
   ansible.builtin.import_playbook: ./02-deployproxy.yml
-
-- name: Ensure release engine is provisioned
-  ansible.builtin.import_playbook: ./03-release-engine.yml

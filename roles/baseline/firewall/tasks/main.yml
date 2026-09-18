@@ -13,8 +13,15 @@
     state: present
     update_cache: true
 
+- name: Stop and disable netfilter-persistent
+  ansible.builtin.systemd:
+    name: netfilter-persistent
+    state: stopped
+    enabled: false
+  failed_when: false
+
 - name: Ensure firewalld service is enabled and started
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: firewalld
     state: started
     enabled: true
