@@ -1,6 +1,11 @@
 ---
+# Install with: ansible-galaxy collection install -r requirements.yml
+# Collections land in ./.ansible/collections (see collections_path in
+# ansible.cfg). Versions are pinned exactly for reproducibility.
 collections:
+  # authorized_key (SSH key management), sysctl, mount (swap)
   - name: ansible.posix
     version: "2.2.2"
+  # ufw, timezone and other general-purpose modules
   - name: community.general
     version: "13.2.0"
