@@ -1,0 +1,9 @@
+---
+# Kernel-level auditing of changes to identity, sudo, SSH, firewall and
+# systemd files. serial: 1 configures one server at a time.
+- name: Apply Kernel-Level System Auditing (auditd)
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - auditd

@@ -1,0 +1,9 @@
+---
+# Verifies mandatory access control (AppArmor) is active and enforcing.
+# serial: 1 configures one server at a time.
+- name: Configure AppArmor
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - apparmor

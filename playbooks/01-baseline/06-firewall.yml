@@ -1,0 +1,11 @@
+---
+# Host firewall (firewalld). Runs after SSH hardening and BEFORE fail2ban,
+# because fail2ban bans IPs through firewalld.
+# serial: 1 applies it to one server at a time, so a mistake cannot cut off
+# both servers.
+- name: Apply Host-Based Firewall Security
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - firewall

@@ -1,0 +1,8 @@
+---
+# Owns the account Ansible connects as. Normal runs connect as "automation".
+# First run on a server without it: add -e ansible_user=<default user>.
+- name: Provision Server Automation User
+  hosts: servers
+  become: true
+  roles:
+    - automation_user

@@ -1,0 +1,9 @@
+---
+# Installs unattended-upgrades so security patches land daily without a
+# manual run. serial: 1 configures one server at a time.
+- name: Apply Automated Security Patching
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - auto_updates

@@ -1,45 +1,49 @@
 ---
-- name: System Update
-  ansible.builtin.import_playbook: 01-system-update.yml
-
+# Full baseline for sandbox servers. Run order matters:
+#   - users and keys exist before SSH hardening,
+#   - swap exists before the big system upgrade,
+#   - the firewall exists before fail2ban, which bans through it.
 - name: Provision System Admin
-  ansible.builtin.import_playbook: 02-system-admin.yml
+  ansible.builtin.import_playbook: 01-system-admin.yml
 
 - name: Provision Automation User
-  ansible.builtin.import_playbook: 03-automation-user.yml
+  ansible.builtin.import_playbook: 02-automation-user.yml
+
+- name: Configure Swap
+  ansible.builtin.import_playbook: 03-swap.yml
+
+- name: System Update
+  ansible.builtin.import_playbook: 04-system-update.yml
 
 - name: Apply SSH Hardening
-  ansible.builtin.import_playbook: 04-ssh-hardening.yml
+  ansible.builtin.import_playbook: 05-ssh-hardening.yml
 
-- name: Configure Firewall
-  ansible.builtin.import_playbook: 05-firewall.yml
+- name: Apply Host-Based Firewall
+  ansible.builtin.import_playbook: 06-firewall.yml
 
 - name: Configure Fail2ban
-  ansible.builtin.import_playbook: 06-fail2ban.yml
+  ansible.builtin.import_playbook: 07-fail2ban.yml
 
-- name: Configure Time Synchronization
-  ansible.builtin.import_playbook: 07-ntp.yml
+- name: Configure Automatic Security Updates
+  ansible.builtin.import_playbook: 08-auto-updates.yml
 
 - name: Configure Persistent Journald
-  ansible.builtin.import_playbook: 08-journald.yml
-
-- name: Configure Auditd
-  ansible.builtin.import_playbook: 09-auditd.yml
+  ansible.builtin.import_playbook: 09-journald.yml
 
 - name: Apply Sysctl Hardening
   ansible.builtin.import_playbook: 10-sysctl.yml
 
-- name: Configure Automatic Security Updates
-  ansible.builtin.import_playbook: 11-auto-updates.yml
-
-- name: Configure Swap
-  ansible.builtin.import_playbook: 12-swap.yml
+- name: Configure Auditd
+  ansible.builtin.import_playbook: 11-auditd.yml
 
 - name: Configure Sysstat
-  ansible.builtin.import_playbook: 13-sysstat.yml
+  ansible.builtin.import_playbook: 12-sysstat.yml
 
-- name: Configure Webroot
-  ansible.builtin.import_playbook: 14-webroot.yml
+- name: Configure Time Synchronization
+  ansible.builtin.import_playbook: 13-ntp.yml
 
 - name: Configure AppArmor
-  ansible.builtin.import_playbook: 15-apparmor.yml
+  ansible.builtin.import_playbook: 14-apparmor.yml
+
+# Not included: 99-remove-default-user.yml (run it separately, as automation,
+# after the baseline has worked).

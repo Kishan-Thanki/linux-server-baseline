@@ -1,0 +1,9 @@
+---
+# Accurate time matters for logs, TLS, and fail2ban's time windows.
+# serial: 1 configures one server at a time.
+- name: Apply Time Synchronization and Timezone
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - ntp

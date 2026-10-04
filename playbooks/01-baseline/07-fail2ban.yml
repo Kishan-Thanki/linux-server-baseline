@@ -1,0 +1,10 @@
+---
+# Installs fail2ban to ban IPs that repeatedly fail SSH logins.
+# Runs AFTER 06-firewall.yml: bans are applied through firewalld.
+# serial: 1 configures one server at a time.
+- name: Apply Intrusion Prevention Security (Fail2ban)
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - fail2ban

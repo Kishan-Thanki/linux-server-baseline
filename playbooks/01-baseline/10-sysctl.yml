@@ -1,6 +1,8 @@
 ---
+# Kernel network hardening. serial: 1 configures one server at a time.
 - name: Apply kernel network hardening settings
   hosts: servers
+  serial: 1
   become: true
   roles:
     - sysctl

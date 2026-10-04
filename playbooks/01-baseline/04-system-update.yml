@@ -1,0 +1,10 @@
+---
+# Upgrade all packages, and reboot if a new kernel or library requires it.
+# serial: 1 updates one server at a time. If a server fails or does not come
+# back after its reboot, the play stops before touching the next one.
+- name: Update system packages
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - system_update

@@ -1,6 +1,0 @@
----
-- name: Provision Server Automation User
-  hosts: servers
-  become: true
-  roles:
-    - automation_user

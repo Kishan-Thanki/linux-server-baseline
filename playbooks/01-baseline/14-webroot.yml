@@ -1,6 +1,0 @@
----
-- name: Create initial server web root
-  hosts: servers
-  become: true
-  roles:
-    - webroot

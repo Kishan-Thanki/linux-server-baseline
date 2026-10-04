@@ -1,0 +1,9 @@
+---
+# Records CPU, memory, disk and network history locally, so past load can be
+# read with sar. serial: 1 configures one server at a time.
+- name: Apply Local Performance Accounting (sysstat)
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - sysstat

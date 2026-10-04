@@ -1,0 +1,9 @@
+---
+# Hardens sshd. serial: 1 applies it to one server at a time, so a bad change
+# stops the play before it can lock you out of the second server.
+- name: Apply SSH Security Hardening
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - ssh_hardening

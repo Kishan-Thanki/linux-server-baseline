@@ -1,0 +1,9 @@
+---
+# Adds a swap file so memory spikes do not get processes killed.
+# serial: 1 configures one server at a time.
+- name: Configure Server Swap
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - swap

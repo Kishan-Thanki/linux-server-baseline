@@ -1,0 +1,8 @@
+---
+# Web stack for the sandbox servers. Run order matters: the web root exists
+# before Caddy serves it. Run the baseline first.
+- name: Create the web root
+  ansible.builtin.import_playbook: 01-webroot.yml
+
+- name: Install and configure Caddy
+  ansible.builtin.import_playbook: 02-caddy.yml

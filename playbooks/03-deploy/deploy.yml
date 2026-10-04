@@ -1,4 +1,6 @@
 ---
+# Deployment tooling. Order matters: the deployer user exists before the
+# sudo rule that names it. Run the baseline and services first.
 - name: Ensure deployer user is provisioned
   ansible.builtin.import_playbook: ./01-deployer-user.yml
 

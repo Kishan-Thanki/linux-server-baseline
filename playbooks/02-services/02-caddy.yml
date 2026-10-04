@@ -1,0 +1,10 @@
+---
+# Installs Caddy as the web server, with a drop-in directory for sites and a
+# watcher that validates and reloads on changes. serial: 1 configures one
+# server at a time.
+- name: Configure Caddy
+  hosts: servers
+  serial: 1
+  become: true
+  roles:
+    - caddy
