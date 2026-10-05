@@ -1,9 +1,0 @@
----
-# Installs the proxy deployment tooling. Requires the caddy role (services)
-# to have run first. serial: 1 configures one server at a time.
-- name: Provision generic proxy deployment CLI
-  hosts: servers
-  serial: 1
-  become: true
-  roles:
-    - deployproxy

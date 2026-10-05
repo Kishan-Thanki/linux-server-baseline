@@ -1,0 +1,14 @@
+---
+# Login name of the account Ansible connects as.
+automation_user_name: "automation"
+
+# Login shell for the automation user.
+automation_user_shell: "/bin/bash"
+
+# Group that grants sudo rights on Ubuntu.
+automation_user_sudo_group: "sudo"
+
+# Path to this user's public key file on the Ansible controller.
+# Empty on purpose: it must be set (see group_vars/servers.yml), and the
+# role fails early if it is not.
+automation_user_ssh_public_key_file: ""

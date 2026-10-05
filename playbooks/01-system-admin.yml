@@ -1,0 +1,8 @@
+---
+# Owns the account server administration connects as system_admin.
+# First run on a server without it: add -e ansible_user=<default user>.
+- name: Provision Primary Admin User
+  hosts: servers
+  become: true
+  roles:
+    - system_admin

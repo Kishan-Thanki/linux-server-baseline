@@ -1,0 +1,9 @@
+# Managed by Ansible (role: journald). Do not edit by hand.
+# Later drop-ins win in journald, so this 99- file overrides earlier ones.
+[Journal]
+Storage={{ journald_storage }}
+SystemMaxUse={{ journald_system_max_use }}
+SystemKeepFree={{ journald_system_keep_free }}
+RuntimeMaxUse={{ journald_runtime_max_use }}
+MaxRetentionSec={{ journald_max_retention_sec }}
+Compress={{ 'yes' if journald_compress else 'no' }}

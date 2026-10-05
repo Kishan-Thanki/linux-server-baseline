@@ -1,0 +1,46 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This system_update role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# lock_timeout waits for the dpkg lock instead of failing when something
+# else (cloud-init, unattended-upgrades) is using apt.
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+# dist upgrades may install or remove packages, which kernel updates need.
+# fail_on_autoremove makes the task fail rather than remove any package,
+# so nothing is deleted without you seeing it.
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    upgrade: dist
+    autoclean: true
+    fail_on_autoremove: true
+    lock_timeout: 120
+
+# Ubuntu creates this file when an update needs a reboot.
+- name: Check if a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: system_update_reboot_required_file
+
+# Ansible waits for the server to come back and reconnect before continuing.
+- name: Reboot the server if required
+  ansible.builtin.reboot:
+    msg: "Ansible triggered a reboot due to system updates."
+    pre_reboot_delay: 2
+    post_reboot_delay: 10
+    connect_timeout: 5
+    reboot_timeout: "{{ system_update_reboot_timeout }}"
+  when:
+    - system_update_reboot_required_file.stat.exists
+    - system_update_reboot

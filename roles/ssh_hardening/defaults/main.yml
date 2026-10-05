@@ -1,0 +1,32 @@
+---
+# Port sshd listens on. If you change it, open it in the OCI NSG and the
+# host firewall first, or you lock yourself out.
+ssh_hardening_port: 22
+
+# Never allow direct root login.
+ssh_hardening_permit_root_login: "no"
+
+# Key-only login: passwords and keyboard-interactive are both off.
+ssh_hardening_password_authentication: "no"
+ssh_hardening_kbdinteractive_authentication: "no"
+ssh_hardening_pubkey_authentication: "yes"
+
+# Failed attempts allowed per connection. Each key the client offers counts.
+# Use IdentitiesOnly yes in ~/.ssh/config so only the right key is offered.
+ssh_hardening_max_auth_tries: 4
+
+# Seconds an unauthenticated connection may stay open (sshd default: 120).
+ssh_hardening_login_grace_time: 30
+
+# Keepalive: probe the client every N seconds and drop it after M missed
+# replies. Cleans up dead connections; a live idle client answers and stays.
+ssh_hardening_client_alive_interval: 300
+ssh_hardening_client_alive_count_max: 2
+
+# Block ssh-agent forwarding (ssh -A) into these servers.
+ssh_hardening_allow_agent_forwarding: "no"
+
+# Users allowed to log in. Overridden by group_vars/servers.yml.
+# WARNING: empty means no AllowUsers line, so every account with a key
+# can log in. Always set this from group_vars.
+ssh_hardening_allow_users: []

@@ -1,0 +1,8 @@
+---
+# Reboot automatically when the upgrade requires it (/var/run/reboot-required).
+# Set to false to upgrade without rebooting.
+system_update_reboot: true
+
+# Seconds to wait for the server to come back after a reboot.
+# These are small shared-CPU VMs, so allow generous time.
+system_update_reboot_timeout: 300

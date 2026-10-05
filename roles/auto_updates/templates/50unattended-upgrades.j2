@@ -1,0 +1,20 @@
+// Managed by Ansible (role: auto_updates). Do not edit by hand.
+
+// Security updates only. Regular "-updates" and "-backports" are left
+// for the system_update playbook, so routine changes never happen unseen.
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+};
+
+// Packages that must never be upgraded automatically.
+Unattended-Upgrade::Package-Blacklist {
+};
+
+// Cleanup after upgrades. Off by default (auto_updates_remove_unused).
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "{{ 'true' if auto_updates_remove_unused else 'false' }}";
+Unattended-Upgrade::Remove-New-Unused-Dependencies "{{ 'true' if auto_updates_remove_unused else 'false' }}";
+Unattended-Upgrade::Remove-Unused-Dependencies "{{ 'true' if auto_updates_remove_unused else 'false' }}";
+
+// Never reboot on its own. When /var/run/reboot-required appears, run the
+// system_update playbook to reboot at a time you choose.
+Unattended-Upgrade::Automatic-Reboot "{{ 'true' if auto_updates_auto_reboot else 'false' }}";

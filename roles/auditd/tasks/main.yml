@@ -1,0 +1,72 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# On the first run skip --check: the package is not installed yet.
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This auditd role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Ensure auditd package is installed
+  ansible.builtin.apt:
+    name: auditd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+- name: Ensure audit rules directory exists
+  ansible.builtin.file:
+    path: /etc/audit/rules.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+# augenrules merges every file in rules.d in name order; 99- loads last.
+- name: Deploy custom audit rules
+  ansible.builtin.template:
+    src: 99-custom.rules.j2
+    dest: /etc/audit/rules.d/99-custom.rules
+    owner: root
+    group: root
+    mode: "0640"
+  notify: Load audit rules
+
+# Load now, so the checks below test the new rules. A watch on a path that
+# does not exist makes this load fail, which stops the run loudly.
+- name: Apply the audit rules now
+  ansible.builtin.meta: flush_handlers
+
+# Exits non-zero if rules.d differs from what is compiled and loaded.
+- name: Validate audit rules
+  ansible.builtin.command:
+    cmd: augenrules --check
+  changed_when: false
+  check_mode: false
+
+- name: Ensure auditd service is enabled and started
+  ansible.builtin.service:
+    name: auditd
+    state: started
+    enabled: true
+
+# Fail the run if the rules are not actually in the kernel.
+- name: Read the loaded audit rules
+  ansible.builtin.command:
+    cmd: auditctl -l
+  register: auditd_loaded_rules
+  changed_when: false
+  check_mode: false
+
+- name: Assert the audit rules are loaded
+  ansible.builtin.assert:
+    that:
+      - "'-k identity' in auditd_loaded_rules.stdout"
+      - "'-k sshd_config' in auditd_loaded_rules.stdout"
+    fail_msg: "The audit rules are not loaded in the kernel."
+    quiet: true
+  when: not ansible_check_mode

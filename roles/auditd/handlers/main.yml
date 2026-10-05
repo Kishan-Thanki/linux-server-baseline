@@ -1,0 +1,7 @@
+---
+# auditd refuses a manual restart, so rules are loaded with augenrules.
+# No check_mode override: a dry run must not load anything.
+- name: Load audit rules
+  ansible.builtin.command:
+    cmd: augenrules --load
+  changed_when: true

@@ -1,0 +1,14 @@
+---
+# Login name of the administrative user this role manages.
+system_admin_name: "sysadmin"
+
+# Login shell for the admin user.
+system_admin_shell: "/bin/bash"
+
+# Group that grants sudo rights on Ubuntu.
+system_admin_sudo_group: "sudo"
+
+# Path to the admin user's public key file on the Ansible controller.
+# Empty on purpose: it must be set (see group_vars/servers.yml), and the
+# role fails early if it is not.
+system_admin_ssh_public_key_file: ""

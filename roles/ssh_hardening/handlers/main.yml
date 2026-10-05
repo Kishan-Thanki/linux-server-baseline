@@ -1,0 +1,7 @@
+---
+# Existing SSH sessions survive a restart; only new connections use the
+# new configuration. The Ubuntu service name is "ssh", not "sshd".
+- name: Restart sshd
+  ansible.builtin.service:
+    name: ssh
+    state: restarted

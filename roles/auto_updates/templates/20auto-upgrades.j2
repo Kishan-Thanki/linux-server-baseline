@@ -1,0 +1,8 @@
+// Managed by Ansible (role: auto_updates). Do not edit by hand.
+
+// Refresh package lists and run unattended-upgrade once a day.
+APT::Periodic::Update-Package-Lists "{{ 1 if auto_updates_enabled else 0 }}";
+APT::Periodic::Unattended-Upgrade "{{ 1 if auto_updates_enabled else 0 }}";
+
+// Clear old downloaded packages every 7 days.
+APT::Periodic::AutocleanInterval "7";

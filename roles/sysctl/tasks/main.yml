@@ -1,0 +1,49 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This sysctl role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Ensure sysctl.d directory exists
+  ansible.builtin.file:
+    path: /etc/sysctl.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# sysctl_set applies each value to the running kernel as it is written, and
+# the file keeps it across reboots, so reload is not needed per item.
+- name: Apply sysctl hardening settings
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value | string }}"
+    sysctl_file: /etc/sysctl.d/99-security.conf
+    sysctl_set: true
+    state: present
+    reload: false
+  loop: "{{ sysctl_settings | dict2items }}"
+
+# Read the live kernel values back, so the run fails if a setting did not
+# take effect. check_mode: false makes this run even with --check.
+- name: Read the live sysctl values
+  ansible.builtin.command:
+    cmd: "sysctl -n {{ item.key }}"
+  loop: "{{ sysctl_settings | dict2items }}"
+  register: sysctl_live
+  changed_when: false
+  check_mode: false
+
+- name: Assert the live values match the configuration
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim == item.item.value | string
+    fail_msg: "{{ item.item.key }} is {{ item.stdout | trim }}, expected {{ item.item.value }}."
+    quiet: true
+  loop: "{{ sysctl_live.results }}"
+  when: not ansible_check_mode

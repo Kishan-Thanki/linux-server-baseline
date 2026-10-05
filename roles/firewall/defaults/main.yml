@@ -1,0 +1,11 @@
+---
+# firewalld zone that holds the rules. "public" is the default zone.
+firewall_zone: "public"
+
+# Ports opened on the host, matching the OCI NSG (SSH, HTTP, HTTPS).
+# 80 and 443 stay closed in practice until a service listens on them.
+# Remove them here if you want the host stricter than the NSG.
+firewall_allowed_ports:
+  - "22/tcp"
+  - "80/tcp"
+  - "443/tcp"

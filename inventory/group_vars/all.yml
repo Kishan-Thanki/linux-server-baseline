@@ -1,2 +1,0 @@
----
-keys_dir: "{{ inventory_dir }}/../keys"

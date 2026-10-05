@@ -1,0 +1,13 @@
+---
+# Set to false to skip every swap task (useful for hosts with enough RAM).
+swap_enabled: true
+
+# Where the swap file lives.
+swap_file: "/swapfile"
+
+# Size in MB. 2 GB on these 1 GB servers, out of a 50 GB boot volume.
+swap_size_mb: 2048
+
+# How eagerly the kernel swaps (0-100). 10 means only under real memory
+# pressure. The kernel default is 60, which swaps too early on a small VM.
+swap_swappiness: 10

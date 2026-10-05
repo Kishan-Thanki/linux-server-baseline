@@ -1,0 +1,54 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This sysstat role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Validate sysstat history
+  ansible.builtin.assert:
+    that:
+      - sysstat_history_days | int >= 1
+      - sysstat_history_days | int <= 28
+    fail_msg: "sysstat_history_days must be 1-28."
+
+- name: Ensure sysstat package is installed
+  ansible.builtin.apt:
+    name: sysstat
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+# The package ships this file with ENABLED="false".
+- name: Enable sysstat data collection
+  ansible.builtin.lineinfile:
+    path: /etc/default/sysstat
+    regexp: "^ENABLED="
+    line: 'ENABLED="true"'
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sysstat
+
+- name: Configure sysstat history retention
+  ansible.builtin.lineinfile:
+    path: /etc/sysstat/sysstat
+    regexp: "^HISTORY="
+    line: "HISTORY={{ sysstat_history_days }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart sysstat
+
+# The setting above does nothing until the service runs. Starting it also
+# activates the timers that collect data every 10 minutes.
+- name: Ensure sysstat is enabled and started
+  ansible.builtin.systemd:
+    name: sysstat
+    enabled: true
+    state: started

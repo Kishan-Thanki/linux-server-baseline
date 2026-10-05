@@ -1,0 +1,129 @@
+---
+# Makes firewalld the host firewall. Run this BEFORE the fail2ban role:
+# fail2ban's ban action (firewallcmd-rich-rules) needs firewalld.
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This firewall role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# Never apply a firewall without SSH in the list, or the next login fails.
+- name: Validate the allowed ports include SSH
+  ansible.builtin.assert:
+    that:
+      - "'22/tcp' in firewall_allowed_ports"
+    fail_msg: "firewall_allowed_ports must include 22/tcp or you lock yourself out."
+
+# lock_timeout waits if the daily apt job is holding the dpkg lock.
+- name: Ensure firewalld package is installed
+  ansible.builtin.apt:
+    name: firewalld
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+# Cloud Provider Baked image restores saved iptables rules at boot through this
+# service. Disabling it stops the old rules from coming back after a reboot,
+# so firewalld is the only firewall manager.
+# failed_when: false because the service may not exist on other images.
+- name: Stop and disable netfilter-persistent
+  ansible.builtin.systemd:
+    name: netfilter-persistent
+    state: stopped
+    enabled: false
+  failed_when: false
+
+# firewalld's packaged unit says "Before=network-pre.target". On this image
+# that closes an ordering cycle (firewalld -> basic.target -> cloud-init ->
+# network -> network-pre.target -> firewalld), and at boot systemd deletes
+# one start job to break it, sometimes firewalld's. A drop-in cannot remove
+# a Before= entry, so we override the whole unit.
+# force: false copies only when the override does not exist yet, so a later
+# run never overwrites it. Trade-off: package updates to the original unit
+# no longer apply here.
+- name: Copy the packaged firewalld unit to /etc for overriding
+  ansible.builtin.copy:
+    src: /lib/systemd/system/firewalld.service
+    dest: /etc/systemd/system/firewalld.service
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
+  notify: Reload systemd units
+
+- name: Remove the network-pre ordering that causes the boot cycle
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/system/firewalld.service
+    regexp: "^Before=network-pre\\.target$"
+    state: absent
+  notify: Reload systemd units
+
+# The earlier drop-in did not work. Remove it so it cannot confuse anyone.
+- name: Remove the old ineffective drop-in
+  ansible.builtin.file:
+    path: /etc/systemd/system/firewalld.service.d
+    state: absent
+  notify: Reload systemd units
+
+# Reload now so systemd reads the override before firewalld is started.
+- name: Apply the systemd reload now
+  ansible.builtin.meta: flush_handlers
+
+# The default zone already allows ssh, so port 22 stays open while
+# firewalld starts and the ports below are added.
+- name: Ensure firewalld service is enabled and started
+  ansible.builtin.systemd:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Configure allowed ports in the default zone
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+    zone: "{{ firewall_zone }}"
+  loop: "{{ firewall_allowed_ports }}"
+
+# Fail the run if an allowed port is not in the active rules.
+- name: Read the active ports
+  ansible.builtin.command:
+    cmd: "firewall-cmd --zone={{ firewall_zone }} --list-ports"
+  register: firewall_active_ports
+  changed_when: false
+  check_mode: false
+
+- name: Assert the allowed ports are active
+  ansible.builtin.assert:
+    that:
+      - item in firewall_active_ports.stdout.split()
+    fail_msg: "{{ item }} is not active in zone {{ firewall_zone }}."
+  loop: "{{ firewall_allowed_ports }}"
+  when: not ansible_check_mode
+
+# firewalld must be both running now and enabled for the next boot.
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert firewalld is running and enabled at boot
+  ansible.builtin.assert:
+    that:
+      - ansible_facts.services['firewalld.service'].state == 'running'
+      - ansible_facts.services['firewalld.service'].status == 'enabled'
+    fail_msg: "firewalld must be running and enabled at boot."
+  when: not ansible_check_mode
+
+# Ansible reuses one SSH connection, which survives the change. Drop it so
+# the next task has to log in again under the new firewall.
+- name: Close the existing SSH connection
+  ansible.builtin.meta: reset_connection
+
+- name: Confirm a fresh login still works
+  ansible.builtin.ping:

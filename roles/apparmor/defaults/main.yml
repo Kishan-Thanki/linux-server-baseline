@@ -1,0 +1,3 @@
+---
+# Set to false to skip every AppArmor task.
+apparmor_enabled: true

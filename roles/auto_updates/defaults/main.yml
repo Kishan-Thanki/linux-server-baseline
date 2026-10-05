@@ -1,0 +1,9 @@
+---
+# Turns the daily package-list refresh and security upgrades on or off.
+auto_updates_enabled: true
+
+# Also remove unused kernels and dependencies after an upgrade.
+# Off by default so nothing is deleted without you asking for it.
+auto_updates_remove_unused: false
+
+auto_updates_auto_reboot: false

@@ -1,0 +1,61 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# Requires the firewall role to have run first (firewalld active).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This fail2ban role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# fail2ban bans through firewalld. If firewalld is not running, the jail
+# would start fine and never block anyone, so stop here instead.
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert firewalld is running
+  ansible.builtin.assert:
+    that:
+      - "'firewalld.service' in ansible_facts.services"
+      - ansible_facts.services['firewalld.service'].state == 'running'
+    fail_msg: >-
+      firewalld is not running. Run the firewall playbook (06-firewall.yml)
+      before fail2ban, or bans will not be enforced.
+
+# python3-systemd lets fail2ban read the journal (backend = systemd).
+# lock_timeout waits if the daily apt job is holding the dpkg lock.
+- name: Ensure Fail2ban packages are installed
+  ansible.builtin.apt:
+    name:
+      - fail2ban
+      - python3-systemd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+# jail.local overrides the packaged defaults and survives package upgrades.
+- name: Deploy Fail2ban jail configuration
+  ansible.builtin.template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart fail2ban
+
+# Tests the full configuration before the handler restarts the service.
+# check_mode: false makes it run even with --check.
+- name: Validate Fail2ban configuration
+  ansible.builtin.command:
+    cmd: fail2ban-client -t
+  changed_when: false
+  check_mode: false
+
+- name: Ensure Fail2ban service is enabled and started
+  ansible.builtin.service:
+    name: fail2ban
+    state: started
+    enabled: true

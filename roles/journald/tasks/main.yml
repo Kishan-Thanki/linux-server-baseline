@@ -1,0 +1,59 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# Later drop-ins override earlier ones in journald, so 99- wins. (sshd is
+# the opposite: there the first value wins.)
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This journald role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# The directory persistent logging writes to. Owned by the journal group so
+# members of systemd-journal can read logs without sudo.
+- name: Ensure the persistent journal directory exists
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+  notify: Restart systemd-journald
+
+- name: Ensure journald drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy journald security configuration
+  ansible.builtin.template:
+    src: 99-security.conf.j2
+    dest: /etc/systemd/journald.conf.d/99-security.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart systemd-journald
+
+# Restart now, so the checks below test the new configuration.
+- name: Apply the journald restart now
+  ansible.builtin.meta: flush_handlers
+
+# Fail the run if persistent logging is not actually in place.
+- name: Check the persistent journal directory
+  ansible.builtin.stat:
+    path: /var/log/journal
+  register: journald_dir
+
+- name: Assert persistent logging is active
+  ansible.builtin.assert:
+    that:
+      - journald_dir.stat.isdir | default(false)
+      - journald_storage != "persistent" or journald_dir.stat.exists
+    fail_msg: "/var/log/journal is missing, so logs are lost on reboot."
+    success_msg: "Journal is persistent."
+  when: not ansible_check_mode

@@ -1,0 +1,66 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# AppArmor is enabled in the kernel at boot; this role cannot turn it on.
+# It installs the tools, makes sure profiles load, and fails if nothing is
+# actually enforced.
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This apparmor role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Install AppArmor packages
+  ansible.builtin.apt:
+    name:
+      - apparmor
+      - apparmor-utils
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+  when: apparmor_enabled
+
+# The apparmor service loads the profiles from /etc/apparmor.d at boot.
+- name: Ensure AppArmor service is enabled and started
+  ansible.builtin.service:
+    name: apparmor
+    enabled: true
+    state: started
+  when: apparmor_enabled
+
+# aa-enabled prints "Yes" when the kernel module is on.
+- name: Check that AppArmor is enabled in the kernel
+  ansible.builtin.command:
+    cmd: aa-enabled
+  register: apparmor_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: apparmor_enabled
+
+# Number of profiles currently in enforce mode.
+- name: Count enforced AppArmor profiles
+  ansible.builtin.command:
+    cmd: aa-status --enforced
+  register: apparmor_enforced
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: apparmor_enabled
+
+- name: Assert AppArmor is active and enforcing
+  ansible.builtin.assert:
+    that:
+      - apparmor_status.stdout | trim == "Yes"
+      - apparmor_enforced.stdout | trim | int > 0
+    fail_msg: >-
+      AppArmor is not active or enforces no profiles
+      (aa-enabled: {{ apparmor_status.stdout | trim }},
+      enforced: {{ apparmor_enforced.stdout | trim }}).
+    quiet: true
+  when:
+    - apparmor_enabled
+    - not ansible_check_mode

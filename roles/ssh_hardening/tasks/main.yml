@@ -1,0 +1,59 @@
+---
+# Writes one sshd drop-in and restarts sshd only if it changed.
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This ssh_hardening role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Ensure SSH drop-in configuration directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The file used to be called 99-hardening.conf. Remove it so two copies
+# never disagree. Does nothing if it is already gone.
+- name: Remove the old 99-hardening drop-in
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d/99-hardening.conf
+    state: absent
+  notify: Restart sshd
+
+# 00- prefix: sshd keeps the FIRST value it reads, and drop-ins load in
+# name order, so this file wins over 50-cloud-init.conf and the others.
+# validate checks the file with sshd before it replaces the live one.
+- name: Deploy SSH hardening configuration drop-in file
+  ansible.builtin.template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: "/usr/sbin/sshd -t -f %s"
+  notify: Restart sshd
+
+# The fragment check above cannot see conflicts with the main config, so
+# test the complete configuration too.
+- name: Validate the full sshd configuration
+  ansible.builtin.command: /usr/sbin/sshd -t
+  changed_when: false
+
+# Restart now instead of at the end of the play, so the check below tests
+# the new configuration.
+- name: Apply the sshd restart now
+  ansible.builtin.meta: flush_handlers
+
+# Ansible reuses one SSH connection, which survives the restart. Drop it
+# so the next task has to log in again under the new rules.
+- name: Close the existing SSH connection
+  ansible.builtin.meta: reset_connection
+
+- name: Confirm a fresh login still works
+  ansible.builtin.ping:

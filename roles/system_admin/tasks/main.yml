@@ -1,0 +1,57 @@
+---
+# Creates the admin user, installs its SSH key, and grants passwordless sudo.
+#
+# Requires supported_os_distribution (shared variable from group_vars).
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This system_admin role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# Fail before touching the server if the key is missing or empty.
+# This also protects the exclusive key task below from wiping keys.
+- name: Validate required system admin SSH key configuration
+  ansible.builtin.assert:
+    that:
+      - system_admin_ssh_public_key_file | length > 0
+      - lookup('ansible.builtin.file', system_admin_ssh_public_key_file, errors='ignore') | length > 0
+    fail_msg: "system_admin_ssh_public_key_file must point to a valid admin public key file."
+
+- name: Ensure sudo group exists
+  ansible.builtin.group:
+    name: "{{ system_admin_sudo_group }}"
+    state: present
+
+# password_lock disables password login. The account is key-only.
+- name: Create or update system admin user
+  ansible.builtin.user:
+    name: "{{ system_admin_name }}"
+    shell: "{{ system_admin_shell }}"
+    create_home: true
+    groups:
+      - "{{ system_admin_sudo_group }}"
+    append: true
+    password_lock: true
+    state: present
+
+# exclusive removes any other key from authorized_keys, so a rotated or
+# leaked old key stops working on the next run.
+- name: Add SSH authorized key for system admin user
+  ansible.posix.authorized_key:
+    user: "{{ system_admin_name }}"
+    key: "{{ lookup('ansible.builtin.file', system_admin_ssh_public_key_file) }}"
+    state: present
+    exclusive: true
+
+# validate runs visudo on a temp file first, so a typo cannot break sudo.
+- name: Configure passwordless sudo for system admin user
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: "/etc/sudoers.d/{{ system_admin_name }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"

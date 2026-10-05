@@ -1,8 +1,0 @@
-[Unit]
-Description=Validate and reload Caddy
-After={{ caddy_service_name }}.service
-Requires={{ caddy_service_name }}.service
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/sbin/caddy-reload

@@ -1,0 +1,16 @@
+---
+# persistent = write logs to /var/log/journal so they survive reboots.
+journald_storage: "persistent"
+
+# Caps for the logs on disk: total size, and space that must stay free.
+journald_system_max_use: "1G"
+journald_system_keep_free: "500M"
+
+# Cap for logs held in RAM before they are written to disk.
+journald_runtime_max_use: "50M"
+
+# Delete entries older than this.
+journald_max_retention_sec: "30day"
+
+# Compress large entries.
+journald_compress: true

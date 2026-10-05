@@ -1,0 +1,3 @@
+---
+# Timezone for the whole server. UTC keeps logs comparable across servers.
+ntp_timezone: "Etc/UTC"

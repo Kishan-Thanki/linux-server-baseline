@@ -1,0 +1,128 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# On the first run, skip --check: the permissions task needs the file to exist.
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This swap role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Validate swap settings
+  ansible.builtin.assert:
+    that:
+      - swap_size_mb | int > 0
+      - swap_swappiness | int >= 0
+      - swap_swappiness | int <= 100
+    fail_msg: "swap_size_mb must be positive and swap_swappiness must be 0-100."
+  when: swap_enabled
+
+# What is active right now, one entry per swap device.
+- name: Check current swap status
+  ansible.builtin.command:
+    cmd: swapon --show --noheadings
+  register: swap_status
+  changed_when: false
+  check_mode: false
+
+# Just the names, e.g. ['/swapfile'], reused by the guards below.
+- name: Record which swap devices are active
+  ansible.builtin.set_fact:
+    swap_active_names: "{{ swap_status.stdout_lines | map('split') | map('first') | list }}"
+
+- name: Check configured swap file
+  ansible.builtin.stat:
+    path: "{{ swap_file }}"
+  register: swap_file_status
+  when: swap_enabled
+
+# fallocate is quick and works on ext4, the Ubuntu default.
+- name: Create swap file when missing
+  ansible.builtin.command:
+    cmd: "fallocate -l {{ swap_size_mb }}M {{ swap_file }}"
+    creates: "{{ swap_file }}"
+  when:
+    - swap_enabled
+    - not swap_file_status.stat.exists
+
+# Root-only, or other users could read memory contents from swap.
+- name: Set swap file permissions
+  ansible.builtin.file:
+    path: "{{ swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: swap_enabled
+
+# Empty output means the file has no swap signature yet.
+- name: Check swap file signature
+  ansible.builtin.command:
+    cmd: "blkid -o value -s TYPE {{ swap_file }}"
+  register: swap_file_type
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: swap_enabled
+
+# The active-swap guard means a file in use is never reformatted.
+- name: Create swap signature when missing
+  ansible.builtin.command:
+    cmd: "mkswap {{ swap_file }}"
+  when:
+    - swap_enabled
+    - swap_file_type.stdout | default('') != "swap"
+    - swap_file not in swap_active_names
+  changed_when: true
+
+# Records the swap file in /etc/fstab so it comes back after a reboot.
+- name: Persist swap in /etc/fstab
+  ansible.posix.mount:
+    path: none
+    src: "{{ swap_file }}"
+    fstype: swap
+    opts: defaults
+    dump: "0"
+    passno: "0"
+    state: present
+  when: swap_enabled
+
+- name: Activate swap
+  ansible.builtin.command:
+    cmd: "swapon {{ swap_file }}"
+  when:
+    - swap_enabled
+    - swap_file not in swap_active_names
+    - not ansible_check_mode
+  changed_when: true
+
+# Writes /etc/sysctl.d/99-swap.conf and applies the value immediately.
+- name: Set swappiness
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "{{ swap_swappiness }}"
+    sysctl_file: /etc/sysctl.d/99-swap.conf
+    sysctl_set: true
+    reload: true
+    state: present
+  when: swap_enabled
+
+# Fails the run if the swap file is not active, instead of only printing.
+- name: Verify active swap
+  ansible.builtin.command:
+    cmd: swapon --show --noheadings
+  register: swap_verification
+  changed_when: false
+  check_mode: false
+  when: swap_enabled
+
+- name: Assert the swap file is active
+  ansible.builtin.assert:
+    that:
+      - swap_file in (swap_verification.stdout_lines | map('split') | map('first') | list)
+    fail_msg: "{{ swap_file }} is not active swap."
+    success_msg: "{{ swap_file }} is active swap."
+  when:
+    - swap_enabled
+    - not ansible_check_mode

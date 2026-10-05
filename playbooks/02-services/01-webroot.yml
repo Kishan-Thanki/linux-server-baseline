@@ -1,9 +1,0 @@
----
-# Creates the directory a web server will later serve, with a placeholder
-# page. serial: 1 configures one server at a time.
-- name: Create initial server web root
-  hosts: servers
-  serial: 1
-  become: true
-  roles:
-    - webroot

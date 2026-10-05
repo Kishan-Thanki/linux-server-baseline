@@ -1,0 +1,23 @@
+---
+# How long a banned IP stays blocked.
+fail2ban_bantime: "1h"
+
+# Window in which failures are counted, and how many are allowed inside it.
+fail2ban_findtime: "10m"
+fail2ban_maxretry: 5
+
+# IPs that are never banned. Only localhost here on purpose: your home IP
+# changes, and a wrong entry would be a permanent hole.
+fail2ban_ignoreip:
+  - "127.0.0.1/8"
+  - "::1"
+
+# Port (or service name) the sshd jail protects. "ssh" resolves to 22.
+# If you change the sshd port in the ssh_hardening role, change this too.
+fail2ban_ssh_port: "ssh"
+
+# Bans are applied through firewalld, which the firewall role installs.
+# If you ever drop firewalld, switch these to iptables-multiport and
+# iptables-allports, and add the iptables package to the role.
+fail2ban_banaction: "firewallcmd-rich-rules"
+fail2ban_banaction_allports: "firewallcmd-rich-rules"

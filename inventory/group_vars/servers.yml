@@ -1,22 +1,21 @@
 ---
-# Supported Linux distributions for this baseline.
-# Add more entries only when the playbooks have been validated for that OS.
+# Only Ubuntu is supported by these roles.
 supported_os_distribution:
   - Ubuntu
 
-# SSH users explicitly allowed to access managed servers.
-# Keep this list in sync whenever a user is added to or removed from SSH access.
-# This is the source of truth for the ssh_hardening_allow_users variable.
+# Users allowed to log in over SSH (written to AllowUsers by the sshd role).
+# List names explicitly so the list does not change with ansible_user.
+# Never remove "automation": it is the account Ansible connects as.
 ssh_hardening_allow_users:
   - "{{ ansible_user }}"
-  - sysadmin
   - automation
-  - deployer
+  - sysadmin
 
-# Users that must be preserved when the default user is removed.
-# These accounts are exempt from deletion and must remain available.
+# Users the "remove default user" role must never delete.
 remove_default_user_protected_users:
   - "{{ ansible_user }}"
-  - "sysadmin"
-  - "automation"
-  - "deployer"
+  - automation
+  - sysadmin
+
+system_admin_ssh_public_key_file: ""
+automation_user_ssh_public_key_file: ""

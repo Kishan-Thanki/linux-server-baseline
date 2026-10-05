@@ -1,4 +1,0 @@
----
-system_update_reboot: true
-
-system_update_reboot_timeout: 300

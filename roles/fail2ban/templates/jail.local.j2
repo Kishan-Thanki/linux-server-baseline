@@ -1,0 +1,17 @@
+# Managed by Ansible (role: fail2ban). Do not edit by hand.
+[DEFAULT]
+bantime = {{ fail2ban_bantime }}
+findtime = {{ fail2ban_findtime }}
+maxretry = {{ fail2ban_maxretry }}
+ignoreip = {{ fail2ban_ignoreip | join(' ') }}
+
+# Read the systemd journal (needs python3-systemd).
+backend = systemd
+
+# Block through firewalld (installed by the firewall role).
+banaction = {{ fail2ban_banaction }}
+banaction_allports = {{ fail2ban_banaction_allports }}
+
+[sshd]
+enabled = true
+port = {{ fail2ban_ssh_port }}

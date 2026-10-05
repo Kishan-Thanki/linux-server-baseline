@@ -1,0 +1,59 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# Reboots are NOT automatic: when a kernel update needs one, run the
+# system_update playbook, which reboots under your control.
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This auto_updates role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+# lock_timeout waits if the daily apt job is holding the dpkg lock.
+- name: Ensure unattended-upgrades is installed
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+# Tells apt to refresh lists and run unattended-upgrade daily.
+- name: Configure APT automatic updates
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+# Decides WHICH updates are allowed: security only, no automatic reboot.
+- name: Configure unattended-upgrades
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+# These systemd timers are what actually triggers the daily run.
+- name: Ensure the apt timers are enabled and running
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: "{{ auto_updates_enabled }}"
+    state: "{{ 'started' if auto_updates_enabled else 'stopped' }}"
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
+# Dry run: reads the config and lists what would be upgraded, without
+# installing anything. check_mode: false makes it run even with --check.
+- name: Validate unattended-upgrades configuration
+  ansible.builtin.command:
+    cmd: unattended-upgrade --dry-run --debug
+  changed_when: false
+  check_mode: false
+  when: auto_updates_enabled

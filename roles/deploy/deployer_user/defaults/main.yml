@@ -1,6 +1,0 @@
----
-deployer_user_name: "deployer"
-
-deployer_user_shell: "/bin/bash"
-
-deployer_user_ssh_public_key_file: ""

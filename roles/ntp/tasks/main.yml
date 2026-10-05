@@ -1,0 +1,51 @@
+---
+# Requires supported_os_distribution (shared variable from group_vars).
+# On the first run skip --check: chrony is not installed yet.
+
+- name: Verify supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] in supported_os_distribution
+    fail_msg: >-
+      This NTP role supports
+      {{ supported_os_distribution | join(', ') }} only.
+
+- name: Set system timezone
+  community.general.timezone:
+    name: "{{ ntp_timezone }}"
+
+# chrony replaces systemd-timesyncd, Ubuntu's default time daemon, because
+# the two packages conflict. apt removes timesyncd as part of the install.
+- name: Ensure chrony package is installed
+  ansible.builtin.apt:
+    name: chrony
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    lock_timeout: 120
+
+- name: Ensure Chrony service is enabled and started
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+
+# A fresh chrony needs a few seconds to reach a source, so retry before
+# failing. "Normal" in the leap status means the clock is synchronized.
+- name: Read chrony synchronization status
+  ansible.builtin.command:
+    cmd: chronyc tracking
+  register: ntp_tracking
+  changed_when: false
+  check_mode: false
+  retries: 6
+  delay: 10
+  until: "'Normal' in ntp_tracking.stdout"
+
+- name: Assert the clock is synchronized
+  ansible.builtin.assert:
+    that:
+      - "'Normal' in ntp_tracking.stdout"
+    fail_msg: "chrony is running but the clock is not synchronized."
+    quiet: true
+  when: not ansible_check_mode

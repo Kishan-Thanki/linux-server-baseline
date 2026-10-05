@@ -1,6 +1,0 @@
----
-swap_enabled: true
-
-swap_file: "/swapfile"
-
-swap_size_mb: 2048

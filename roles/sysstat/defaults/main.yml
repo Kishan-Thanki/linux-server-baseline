@@ -1,0 +1,4 @@
+---
+# Days of history to keep in /var/log/sysstat. Data files are named by day
+# of the month, so 28 is the practical maximum with the default settings.
+sysstat_history_days: 28
