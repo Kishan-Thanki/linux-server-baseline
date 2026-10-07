@@ -32,4 +32,4 @@ jobs:
             -p .ansible/collections
 
       - name: Run repository validation
-        run: ./scripts/validate-ansible.sh
+        run: ./validate.sh
