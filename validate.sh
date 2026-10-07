@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 echo "==> Checking Ansible playbook syntax"
 
-find playbooks -type f -name '*.yml' -print | sort | while IFS= read -r playbook; do
+find playbooks -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort | while IFS= read -r playbook; do
     echo "    $playbook"
     ansible-playbook "$playbook" \
         --syntax-check \
